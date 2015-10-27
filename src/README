@@ -1,0 +1,32 @@
+
+- Example build of fully compiler optimized version
+
+root@nb605-laptop:~/VTF# cat src/conffull
+./configure --with-java=/data/jdk1.6.0_23/ --with-libunwind --with-papi --with-timer=papi --disable-logging
+cd vex
+make clean &> /dev/null
+echo "Building VEX"
+make  &> ../lastbuild
+cd ../jine
+make clean &>  /dev/null
+echo "Building JINE"
+make >> ../lastbuild
+cd ..
+
+
+- Example build of GDB enabled
+
+root@nb605-laptop:~/VTF# cat src/confgdb
+./configure --with-java=/data/jdk1.6.0_23/ --with-papi --with-libunwind --with-timer=papi --enable-gdb --disable-logging
+cd vex
+make clean &> /dev/null
+echo "Building VEX"
+make  &> ../lastbuild
+cd ../jine
+make clean &>  /dev/null
+echo "Building JINE"
+make >> ../lastbuild
+cd ..
+
+
+

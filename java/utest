@@ -1,0 +1,16 @@
+#!/bin/bash
+
+
+tests=`ls testScripts/ | grep Test | grep -viE "~" | grep -viE Validation | wc -l`
+
+i=1
+echo "======================================================"
+
+while [ $i -le $tests ];do
+
+newtest=`ls testScripts/ | grep Test | grep -viE "~" | grep -viE Validation | head -$i | tail -1`
+echo $newtest" $1 "`./testScripts/$newtest $1`
+echo "======================================================"
+
+i=$((i+1))
+done

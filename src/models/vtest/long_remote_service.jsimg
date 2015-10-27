@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="ISO-8859-1" standalone="no"?>
+<archive xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="long_remote_service.jsimg" timestamp="Tue Jun 12 15:47:19 BST 2012" xsi:noNamespaceSchemaLocation="Archive.xsd">
+<sim disableStatisticStop="false" logDecimalSeparator="." logDelimiter=";" logPath="." logReplaceMode="0" maxSamples="1000000" name="long_remote_service.jsimg" polling="1.0" xsi:noNamespaceSchemaLocation="SIMmodeldefinition.xsd">
+<userClass name="Class0" priority="0" referenceSource="Entrance" type="open"/>
+<node name="Entrance">
+<section className="RandomSource">
+<parameter array="true" classPath="jmt.engine.NetStrategies.ServiceStrategy" name="ServiceStrategy">
+<refClass>Class0</refClass>
+<subParameter classPath="jmt.engine.NetStrategies.ServiceStrategies.ServiceTimeStrategy" name="ServiceTimeStrategy">
+<subParameter classPath="jmt.engine.random.Exponential" name="Exponential"/>
+<subParameter classPath="jmt.engine.random.ExponentialPar" name="distrPar">
+<subParameter classPath="java.lang.Double" name="lambda">
+<value>2.5</value>
+</subParameter>
+</subParameter>
+</subParameter>
+</parameter>
+</section>
+<section className="ServiceTunnel"/>
+<section className="Router">
+<parameter array="true" classPath="jmt.engine.NetStrategies.RoutingStrategy" name="RoutingStrategy">
+<refClass>Class0</refClass>
+<subParameter classPath="jmt.engine.NetStrategies.RoutingStrategies.RandomStrategy" name="Random"/>
+</parameter>
+</section>
+</node>
+<node name="The Server">
+<section className="Queue">
+<parameter classPath="java.lang.Integer" name="size">
+<value>-1</value>
+</parameter>
+<parameter array="true" classPath="java.lang.String" name="dropStrategies">
+<refClass>Class0</refClass>
+<subParameter classPath="java.lang.String" name="dropStrategy">
+<value>drop</value>
+</subParameter>
+</parameter>
+<parameter classPath="jmt.engine.NetStrategies.QueueGetStrategies.FCFSstrategy" name="FCFSstrategy"/>
+<parameter array="true" classPath="jmt.engine.NetStrategies.QueuePutStrategy" name="NetStrategy">
+<refClass>Class0</refClass>
+<subParameter classPath="jmt.engine.NetStrategies.QueuePutStrategies.TailStrategy" name="TailStrategy"/>
+</parameter>
+</section>
+<section className="Server">
+<parameter classPath="java.lang.Integer" name="maxJobs">
+<value>1</value>
+</parameter>
+<parameter array="true" classPath="java.lang.Integer" name="numberOfVisits">
+<refClass>Class0</refClass>
+<subParameter classPath="java.lang.Integer" name="numberOfVisits">
+<value>1</value>
+</subParameter>
+</parameter>
+<parameter array="true" classPath="jmt.engine.NetStrategies.ServiceStrategy" name="ServiceStrategy">
+<refClass>Class0</refClass>
+<subParameter classPath="jmt.engine.NetStrategies.ServiceStrategies.ServiceTimeStrategy" name="ServiceTimeStrategy">
+<subParameter classPath="jmt.engine.random.Normal" name="Normal"/>
+<subParameter classPath="jmt.engine.random.NormalPar" name="distrPar">
+<subParameter classPath="java.lang.Double" name="mean">
+<value>0.22</value>
+</subParameter>
+<subParameter classPath="java.lang.Double" name="standardDeviation">
+<value>4.8400000000000006E-20</value>
+</subParameter>
+</subParameter>
+</subParameter>
+</parameter>
+</section>
+<section className="Router">
+<parameter array="true" classPath="jmt.engine.NetStrategies.RoutingStrategy" name="RoutingStrategy">
+<refClass>Class0</refClass>
+<subParameter classPath="jmt.engine.NetStrategies.RoutingStrategies.RandomStrategy" name="Random"/>
+</parameter>
+</section>
+</node>
+<node name="Exit">
+<section className="JobSink"/>
+</node>
+<measure alpha="0.01" name="The Server_Class0_Residence Time" nodeType="station" precision="0.03" referenceNode="The Server" referenceUserClass="Class0" type="Residence Time" verbose="false"/>
+<measure alpha="0.01" name="Class0_System Response Time" nodeType="station" precision="0.03" referenceNode="" referenceUserClass="Class0" type="System Response Time" verbose="false"/>
+<connection source="Entrance" target="The Server"/>
+<connection source="The Server" target="Exit"/>
+</sim>
+<jmodel xsi:noNamespaceSchemaLocation="JModelGUI.xsd">
+<userClass color="#FF0000FF" name="Class0"/>
+<station name="Entrance">
+<position rotate="false" x="25.0" y="94.0"/>
+</station>
+<station name="The Server">
+<position rotate="false" x="177.0" y="91.0"/>
+</station>
+<station name="Exit">
+<position rotate="false" x="418.0" y="94.0"/>
+</station>
+</jmodel>
+<results pollingInterval="1.0" xsi:noNamespaceSchemaLocation="Results.xsd">
+<measure alpha="0.99" analyzedSamples="573440" finalValue="1.428076047825719" name="Self-service machine_Class0_Residence Time" nodeType="station" precision="0.03" referenceClass="Class0" referenceStation="Self-service machine" state="1" type="5">
+<sample meanValue="1.6037851621046006"/>
+<sample lowerBound="1.2862106084974358" meanValue="1.3836546089957709" upperBound="1.4810986094941059"/>
+<sample lowerBound="1.3683876222196474" meanValue="1.441845981503397" upperBound="1.5153043407871467"/>
+<sample lowerBound="1.379408009918044" meanValue="1.4314910125431606" upperBound="1.4835740151682772"/>
+<sample lowerBound="1.379408009918044" meanValue="1.4314910125431606" upperBound="1.4835740151682772"/>
+<sample lowerBound="1.385376314481019" meanValue="1.428076047825719" upperBound="1.4707757811704192"/>
+</measure>
+<measure alpha="0.99" analyzedSamples="573440" finalValue="1.428076047825719" name="Class0_System Response Time" nodeType="station" precision="0.03" referenceClass="Class0" referenceStation="" state="1" type="8">
+<sample meanValue="1.6037851621046006"/>
+<sample lowerBound="1.2862106084974358" meanValue="1.3836546089957709" upperBound="1.4810986094941059"/>
+<sample lowerBound="1.3683876222196474" meanValue="1.441845981503397" upperBound="1.5153043407871467"/>
+<sample lowerBound="1.379408009918044" meanValue="1.4314910125431606" upperBound="1.4835740151682772"/>
+<sample lowerBound="1.379408009918044" meanValue="1.4314910125431606" upperBound="1.4835740151682772"/>
+<sample lowerBound="1.385376314481019" meanValue="1.428076047825719" upperBound="1.4707757811704192"/>
+</measure>
+</results>
+</archive>
