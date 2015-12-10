@@ -26,3 +26,19 @@
 *.exe
 *.out
 *.app
+
+# Tags created by etags, ctags, gtags (GNU global) and cscope
+TAGS
+.TAGS
+!TAGS/
+tags
+.tags
+!tags/
+gtags.files
+GTAGS
+GRTAGS
+GPATH
+cscope.files
+cscope.out
+cscope.in.out
+cscope.po.out

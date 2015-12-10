@@ -12,10 +12,13 @@
 
 using namespace std;
 
+float Timers::globalScalingFactor = 1.0;
+
 Timers::Timers() {
 	resetCounters();
 	lastCPUTime = 0;
-	threadPerfPtr = onThreadInit();	// The thread CPU-time measurement starts from this point
+	// The thread CPU-time measurement starts from this point
+	threadPerfPtr = onThreadInit();
 }
 
 Timers::~Timers() {
@@ -23,7 +26,19 @@ Timers::~Timers() {
 	onThreadEnd();
 }
 
-float Timers::globalScalingFactor = 1.0;
+void Timers::updateTimesBeforeWaitingWithTimeout(const long &_timeout) {
+    timeout = _timeout;
+	// this changes the estimatedRealTime
+	if (_timeout == 0) {
+	    threadStillBlocked = MAXIMUM_CONSECUTIVE_TIMESLICES_AS_BLOCKED_IN_MONITOR;
+	} else {
+		if (_timeout >= (LONG_MAX - estimatedRealTime)/(virtualTimeSpeedup * globalScalingFactor)) {
+			estimatedRealTime = LONG_MAX;
+		} else {
+			estimatedRealTime += (timeout * virtualTimeSpeedup * globalScalingFactor);
+		}
+	}
+}
 
 struct vperfctr *Timers::onThreadInit() {
 	// any code that should be called for the timer when a thread is initialized
@@ -52,7 +67,7 @@ void Timers::onThreadEnd() {
 }
 
 long long Timers::updateClocks() {
-	lastCPUTime = getVirtualTime();
+    lastCPUTime = getVirtualTime();
 	lastRealTime = Time::getRealTime();
 	return lastCPUTime;
 }
@@ -96,23 +111,6 @@ void Timers::updateThreadLocalTimeSinceLastResumeToRealTime(const long long &pre
 	// Check whether the Virtual Time has progressed
 	if (timeDiff > 0) {
 		addLocalTime(timeDiff);
-	}
-}
-
-
-void Timers::updateTimesBeforeWaitingWithTimeout(const long &_timeout) {
-	timeout 	  = _timeout;
-	// this changes the estimatedRealTime
-	if (_timeout == 0) {
-		threadStillBlocked = MAXIMUM_CONSECUTIVE_TIMESLICES_AS_BLOCKED_IN_MONITOR;
-	} else {
-		if (timeout >= (LONG_MAX - estimatedRealTime)/(virtualTimeSpeedup * globalScalingFactor)) {
-			estimatedRealTime = LONG_MAX;
-
-		} else {
-			estimatedRealTime += (timeout * virtualTimeSpeedup * globalScalingFactor);
-
-		}
 	}
 }
 

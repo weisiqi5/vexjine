@@ -13,8 +13,6 @@
 
 #include <sys/time.h>
 #include <sys/errno.h>
-#include <syscall.h>
-#include <unistd.h>
 #include <iostream>
 #include <signal.h>
 #include <time.h>

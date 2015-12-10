@@ -4,6 +4,8 @@
 #include <map>
 #include <vector>
 #include <pthread.h>
+#include <unistd.h>
+#include <sys/syscall.h>
 
 class Visualizer;
 class VexThreadState;

@@ -51,7 +51,9 @@ ThreadEventsBehaviour::~ThreadEventsBehaviour() {
 
 }
 
-
+/**
+ * let the registry know that main is starting
+ */
 void ThreadEventsBehaviour::onThreadMainStart(const long &threadId) {
 	registry->newThreadBeingSpawned(0, threadId);		// let the registry know that main is starting
 	onStart(threadId, "main");
@@ -80,6 +82,7 @@ void ThreadEventsBehaviour::onStart(const long &threadId, const char *threadName
 		} else {
 			state = new StackTraceThreadState(threadId, const_cast<char *>(threadName));
 		}
+
 		if (state != NULL) {
 			managers->onThreadSpawn(state);
 		}

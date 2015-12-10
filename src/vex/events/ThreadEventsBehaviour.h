@@ -28,6 +28,10 @@ public:
 	ThreadEventsBehaviour(ThreadManagerRegistry *_managers, ThreadRegistry *_registry, EventLogger *_eventLogger, ObjectRegistry *_waitingOnObjectRegistry, LockRegistry *_lockRegistry, AggregateStateCounters *_aggregateStateTransitionCounters, const bool &_stackTraceMode, const bool &_usingVtfScheduler, PapiProfiler *_hpcProfiler);
 	virtual ~ThreadEventsBehaviour();
 
+    /**
+     * @brief onThreadMainStart does stuffs!
+     * @param threadId is an argument.
+     */
 	void onThreadMainStart(const long &threadId);
 	void onStart(const long &threadId, const char *threadName);
 	void registerThreadsToBeExcludedFromSimulation(char *excludedThreadsFile);
