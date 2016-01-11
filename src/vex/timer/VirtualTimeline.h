@@ -16,7 +16,7 @@ struct vex_and_system_states;
 class TimeLoggingBehaviour;
 
 /**
- * Represents a virtual timeline.
+ * XXX Represents a virtual timeline.
  */
 class VirtualTimeline
 {
@@ -90,7 +90,7 @@ protected:
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
- * Represents a virtual timeline for multicore processors.
+ * XXX Represents a virtual timeline for multicore processors.
  *
  * There is a single global virtual time and a local virtual time for each
  * logical processor.
@@ -194,11 +194,12 @@ protected:
 ////////////////////////////////////////////////////////////////////////////////
 
 /***
- * Represents a strict virtual timeline for multicore processors.
+ * XXX Represents a strict virtual timeline for multicore processors.
  *
  * There is a single global virtual time for all logical processors.
  */
-class DisablingMulticoreVirtualTimeline : public MulticoreVirtualTimeline {
+class DisablingMulticoreVirtualTimeline : public MulticoreVirtualTimeline
+{
   public:
     /**
      * Construct a new multicore virtual timeline for \p schedulers logical
@@ -256,9 +257,10 @@ protected:
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
- *
+ * TODO
  */
-class VirtualTimeSnapshot {
+class VirtualTimeSnapshot
+{
   public:
     VirtualTimeSnapshot() {
         globalTime = 0;
@@ -302,10 +304,11 @@ class VirtualTimeSnapshot {
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
- * Interface for manipulating a VirtualTimeline using a Timers associated with
+ * XXX Interface for manipulating a VirtualTimeline using a Timers associated with
  * a VexThreadState.
  */
-class VirtualTimelineController {
+class VirtualTimelineController
+{
   public:
     virtual void commitCpuTimeProgress(VexThreadState *state) = 0;
     virtual void commitIoTimeProgress(VexThreadState *state, const long long &actualIoDuration) = 0;
@@ -339,10 +342,11 @@ class VirtualTimelineController {
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
- * Basic implementation of VirtualTimelineController, responsible for a single
+ * XXX Basic implementation of VirtualTimelineController, responsible for a single
  * VirtualTimeline.
  */
-class SingleVirtualTimelineController : public VirtualTimelineController {
+class SingleVirtualTimelineController : public VirtualTimelineController
+{
   public:
     /**
      * Create a new controller that is responsible for virtual timeline \p
@@ -461,10 +465,11 @@ protected:
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
- * The same as SingleVirtualTimelineController, except only used when the VEX
+ * XXX The same as SingleVirtualTimelineController, except only used when the VEX
  * scheduler is not used.
  */
-class PassiveVirtualTimelineController : public SingleVirtualTimelineController {
+class PassiveVirtualTimelineController : public SingleVirtualTimelineController
+{
   public:
     PassiveVirtualTimelineController(VirtualTimeline *_timeline);
 
@@ -488,10 +493,11 @@ class PassiveVirtualTimelineController : public SingleVirtualTimelineController 
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
- * Implementation of VirtualTimelineController, responsible for a single logical
+ * XXX Implementation of VirtualTimelineController, responsible for a single logical
  * processor #localTimelineId in a MulticoreVirtualTimeline.
  */
-class MultipleVirtualTimelinesController : public VirtualTimelineController {
+class MultipleVirtualTimelinesController : public VirtualTimelineController
+{
   public:
     /**
      *
@@ -623,7 +629,11 @@ class MultipleVirtualTimelinesController : public VirtualTimelineController {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-class StatisticsEnabledVirtualTimelineController : public VirtualTimelineController {
+/**
+ * TODO
+ */
+class StatisticsEnabledVirtualTimelineController : public VirtualTimelineController
+{
   public:
     StatisticsEnabledVirtualTimelineController(VirtualTimelineController *_controller, TimeLoggingBehaviour *_timeLogging) : controller(_controller), timeLogging(_timeLogging) {}
 
@@ -655,7 +665,11 @@ protected:
 
 ////////////////////////////////////////////////////////////////////////////////
 
-class VirtualTimeForwardLeapSnapshot {
+/**
+ * TODO
+ */
+class VirtualTimeForwardLeapSnapshot
+{
   public:
     VirtualTimeForwardLeapSnapshot(bool _allowed, long long _timeRemaining, long _timeout, long long _threadERT, int _underCreation, const struct vex_and_system_states &_vass);
     friend std::ostream & operator <<(std::ostream &outs, const VirtualTimeForwardLeapSnapshot &record);

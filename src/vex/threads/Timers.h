@@ -580,7 +580,9 @@ class Timers {
     void updateThreadLocalTimeSinceLastResumeToRealTime(const long long &presetTime);
 
     /**
-     * TODO
+     * Returns the difference between Time::getRealTime(), which polls the most
+     * recent real time (wallclock time) using external performance/time
+     * libraries, and the cached value #lastRealTime.
      */
     long long getCurrentTimeDifferenceFromLastUpdatedRealTime();
 
