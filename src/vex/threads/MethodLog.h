@@ -9,56 +9,128 @@
 #define METHODLOG_H_
 
 #include "MethodCallInfo.h"
-#include "Timers.h"
 
 #include <stack>
 
-class MethodLog {
-public:
-	MethodLog();
-	virtual ~MethodLog();
+/**
+ * XXX Stores MethodCallInfo objects for a VEX monitored thread.
+ */
+class MethodLog
+{
+ public:
+  /**
+   * Constructor.
+   */
+  MethodLog();
 
-	inline MethodCallInfo *getCurrentMethodInfo() {
-		return currentMethodInfo;
-	};
-	inline void setCurrentMethodInfo(MethodCallInfo *_newMethod) {
-		currentMethodInfo = _newMethod;
-	};
-	inline MethodCallInfo *getExitingMethodInfo() {
-		return exitingMethodInfo;
-	};
-	void decreaseNextMethodInfoToUse() {
-		--nextMethodInfoToUse;
-	}
+  /**
+   * Destructor.
+   */
+  virtual ~MethodLog();
 
-	int getCurrentMethodId();
-	std::stack<MethodCallInfo*>* getThreadMethodStack();
-	void pushMethodEntryEventIntoThreadMethodStack(MethodCallInfo *callinfo);
+  /**
+   * Return #currentMethodInfo.
+   */
+  MethodCallInfo* getCurrentMethodInfo() {
+    return currentMethodInfo;
+  }
 
-	unsigned int const & getNextMethodInfoToUse() {
-		return nextMethodInfoToUse;
-	}
-	std::vector<MethodCallInfo *> *getMethodInfoStorage() {
-		return methodInfoStorage;
-	}
-	void increaseNextMethodInfoToUse() {
-		++nextMethodInfoToUse;
-	}
-protected:
+  /**
+   * Set #currentMethodInfo to \p _newMethod.
+   */
+  void setCurrentMethodInfo(MethodCallInfo *_newMethod) {
+    currentMethodInfo = _newMethod;
+  }
 
-//	inline void setExitingMethodInfo(MethodCallInfo *_newMethod) {
-//		exitingMethodInfo = _newMethod;
-//	};
+  /**
+   * Return #exitingMethodInfo.
+   */
+  MethodCallInfo* getExitingMethodInfo() {
+    return exitingMethodInfo;
+  }
 
+  /**
+   * Return #nextMethodInfoToUse.
+   */
+  unsigned int const& getNextMethodInfoToUse() {
+    return nextMethodInfoToUse;
+  }
 
-private:
-	MethodCallInfo *currentMethodInfo;	// used to keep accounting of information regarding virtual accelerators
-	MethodCallInfo *exitingMethodInfo;	// used to keep accounting of information regarding virtual accelerators
-	std::vector<MethodCallInfo *> *methodInfoStorage;
-	unsigned int nextMethodInfoToUse;
-	std::stack<MethodCallInfo*>* methodStack;
+  /**
+   * Decrement #nextMethodInfoToUse by 1.
+   */
+  void decreaseNextMethodInfoToUse() {
+    --nextMethodInfoToUse;
+  }
 
-	Timers *timers;
+  /**
+   * Increment #nextMethodInfoToUse by 1.
+   */
+  void increaseNextMethodInfoToUse() {
+    ++nextMethodInfoToUse;
+  }
+
+  /**
+   * Return a pointer to #methodInfoStorage.
+   */
+  std::vector<MethodCallInfo*>* getMethodInfoStorage() {
+    return methodInfoStorage;
+  }
+
+  /**
+   * Push a new profiled method invoked by the thread this MethodLog is
+   * associated with (\p callinfo) into #methodStack.
+   */
+  void pushMethodEntryEventIntoThreadMethodStack(MethodCallInfo *callinfo);
+
+  /**
+   * Return the method ID of #currentMethodInfo, or 0 if it is NULL.
+   */
+  int getCurrentMethodId();
+
+  /**
+   * Return #methodStack, creating a new instance if it is currently NULL.
+   *
+   * The constructor does not explicitly create #methodStack.
+   */
+  std::stack<MethodCallInfo*>* getThreadMethodStack();
+
+ private:
+  /**
+   * Pointer to the most recently profiled method invoked by the thread this
+   * MethodLog is associated with, that is, the parent of the method associated
+   * with #exitingMethodInfo.
+   */
+  MethodCallInfo *currentMethodInfo;    // used to keep accounting of information regarding virtual accelerators
+
+  /**
+   * FIXME
+   * This MethodCallInfo is created with default, nil values when constructing
+   * a new MethodLog and is used by ThreadState, but it is never explicitly
+   * set with information meaning the thread ID remains 0.
+   *
+   * Only scheduler/distributed/ThreadManagerServer.{h,cpp} makes calls to
+   * exitingMethodInfo->setInfo().
+   */
+  MethodCallInfo *exitingMethodInfo;    // used to keep accounting of information regarding virtual accelerators
+
+  /**
+   * Stores all profiled methods invoked by the thread this MethodLog is
+   * associated with, even after they've been removed from #methodStack.
+   */
+  std::vector<MethodCallInfo*> *methodInfoStorage;
+
+  /**
+   * Index of the next MethodCallInfo in #methodInfoStorage to use, which may
+   * already exist in which case the existing MethodCallInfo is re-used.
+   */
+  unsigned int nextMethodInfoToUse;
+
+  /**
+   * Stack of all profiled methods invoked by the thread this MethodLog is
+   * associated with.
+   */
+  std::stack<MethodCallInfo*>* methodStack;
 };
 
 #endif /* METHODLOG_H_ */

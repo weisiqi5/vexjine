@@ -260,7 +260,6 @@ void ThreadManager::ignoreSignalHandler() {
 }
 
 void ThreadManager::notifySchedulerForVirtualizedTime(VexThreadState *state, const float &scalingFactor) {
-
 	state->setTimeScalingFactor(scalingFactor);
 	_notifySchedulerForVirtualizedTime(state);
 }

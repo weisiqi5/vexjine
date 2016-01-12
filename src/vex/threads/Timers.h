@@ -463,7 +463,9 @@ class Timers {
     }
 
     /**
-     * TODO
+     * Update the MethodCallInfo associated with method \p methodId with
+     * timestamps from this Timers, which belongs to the thread that executed
+     * method \p methodId.
      */
     void updateExitingMethodInfo(const int &methodId, MethodCallInfo *exitingMethod) {
         exitingMethod->setInfo(methodId, virtualTime, estimatedRealTime, monitorWaitingTime, ioWaitingTime);
@@ -569,7 +571,8 @@ class Timers {
 
     /**
      * If \p presetTime is larger than #lastCPUTime, that is, virtual time has
-     * progressed, then update #virtualTime and #estimatedRealTime.
+     * progressed, then add the difference to #virtualTime and
+     * #estimatedRealTime.
      */
     void updateThreadLocalTimeSinceLastResumeTo(const long long &presetTime);
 

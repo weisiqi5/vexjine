@@ -103,7 +103,13 @@ public:
     virtual void blockCurrentThread(VexThreadState * state);
     virtual void resumeThread(VexThreadState * state);
     virtual bool changeThreadStateToRunning(VexThreadState * state);
+
+    /**
+     * Change the local scaling factor for thread \p state to \p scalingFactor
+     * and unconditionally wake up the ThreadManager.
+     */
     virtual void notifySchedulerForVirtualizedTime(VexThreadState * state, const float &scalingFactor);
+
     void unsetCurrentThreadFromRunningThread(VexThreadState * state);
     void handleIOPerformingThread(VexThreadState * state);
     virtual void interruptTimedWaitingThread(VexThreadState * state);

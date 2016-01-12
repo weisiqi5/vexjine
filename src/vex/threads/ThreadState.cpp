@@ -18,7 +18,6 @@ __thread VexThreadState *VexThreadState::permanentThreadState = NULL;
 
 Visualizer *VexThreadState::visualizer = NULL;
 
-
 ThreadManager *VexThreadState::defaultThreadManager;
 ThreadManagerRegistry *VexThreadState::threadManagerRegistry;
 
@@ -272,14 +271,18 @@ bool VexThreadState::ensureThreadIsNotInNativeWaitingStateWhenEnteringVex(const 
 
     inVex = true;
 
+    // TODO Why would the current ThreadManager be NULL?
     if (!isRunning() || getThreadCurrentlyControllingManager() == NULL) {
+        // Log the transition from this thread's current state to CUSTOM2.
         setCustom2();
         lockShareResourceAccessKey();
+        // Suspend this loose thread.
         getPreviouslyControllingManager()->suspendLooseCurrentThread(this, startingTime);
+        // Okay, we're awake again.
         //managers->getDefaultManager()->suspendCurrentThread(state, startingTime, ThreadManager::SUSPEND_OPT_EXTERNALLY_LOCKED | ThreadManager::SUSPEND_OPT_FORCE_SUSPEND | ThreadManager::SUSPEND_OPT_DONT_WAKE_UP_SCHEDULER);
         unlockShareResourceAccessKey();
+        // We were in native waiting, so update and return accordingly.
         threadIsNotInNativeWaiting = false;
-
         assert(getThreadCurrentlyControllingManager() != NULL);
     }
 
@@ -588,12 +591,9 @@ void VexThreadState::onSignalledFromScheduler() {
 
 }
 
-
-
 void VexThreadState::haltSuspendForAwhile() {
     scheduling->haltSuspendForAwhile();
 }
-
 
 //unordered_map<int, float> *methodTimeScalingFactors
 bool VexThreadState::onVexMethodEntry(const int & methodId, const float &methodTimeScalingFactor) {
@@ -619,8 +619,6 @@ bool VexThreadState::onVexMethodEntry(const int & methodId, const float &methodT
     return logMethodEntry(methodId, shouldChangeVTFactorOnExit);
 }
 
-
-
 bool VexThreadState::logMethodEntry(const int &methodId, const bool &shouldChangeVTFactorOnExit) {
     MethodCallInfo *callinfo = getNextMethodCallInfo(methodId);
     if (callinfo == NULL) {
@@ -629,103 +627,24 @@ bool VexThreadState::logMethodEntry(const int &methodId, const bool &shouldChang
     }
     callinfo->setShouldResetVTFactor(shouldChangeVTFactorOnExit);
 
-
     pushMethodEntryEventIntoThreadMethodStack(callinfo);
-    //    setCurrentMethodInfo(callinfo);
 
-    //    if (methodId == 1623255268  || methodId == 295164315) {
+    // setCurrentMethodInfo(callinfo);
+
     if (shouldShowMethodEntries()) {
         cout << getName() << "(" << getId() << ") entering " << methodId << endl;
     }
-
 
     // This is needed for synchronized tracking of the number of threads that are accessing a method at any point in time.
     // Reloading the method can only be accomplished if a single thread is entering the method and no other thread is running it
     //    unordered_map<int, MethodData *>::iterator rit = registeredMethodNames.find(methodId);
     //    if (rit != registeredMethodNames.end()) {
-//    callinfo->setGlobalMethodDataOnEntry(registeredMethodNames[methodId]);
+    //        callinfo->setGlobalMethodDataOnEntry(registeredMethodNames[methodId]);
     //    }
 
     // this is the callinfo to be updated for anything that happens within that method call from the calling thread
     return callinfo->isRecursive();
 }
-
-
-PerformanceMeasure *VexThreadState::logMethodExit() {
-
-    MethodCallInfo *exitingMethodInfo = getExitingMethodInfo();
-    if (exitingMethodInfo == NULL) {
-        return NULL;
-    }
-
-    MethodCallInfo *callingMethodInfo = NULL;    // the return value
-    stack<MethodCallInfo*>* threadStack = getThreadMethodStack();
-
-    if (threadStack != NULL) {
-
-        // Pointer to this thread's stack
-        if (!threadStack->empty()) {
-            MethodCallInfo *entryCallinfo = threadStack->top();
-
-            if (shouldShowMethodEntries()) {
-                cout << getName() << "(" << getId() << ") exiting " << exitingMethodInfo->getMethodId() << endl; //": " << (registeredMethodNames[exitingMethodInfo->getMethodId()])->getName() << endl;
-            }
-//            if (exitingMethodInfo->getMethodId() == 1623255268  || exitingMethodInfo->getMethodId() == 295164315) {
-//                cout << "exiting " << exitingMethodInfo->getMethodId() << ": " << (registeredMethodNames[exitingMethodInfo->getMethodId()])->getName() << endl;
-//            }
-
-//            ///assert(entryCallinfo->getMethodId() == exitingMethodInfo->getMethodId());
-            if (entryCallinfo->getMethodId() != exitingMethodInfo->getMethodId()) {
-                // TODO: why do we get 4 of these in the beginning? SPECjvm2008 Derby creates this
-                // The next error can still be legally thrown by uncaught exceptions
-//                fprintf(stderr, "Wrong method name on thread %ld, previous: %d (%s) and currently leaving %d (%s)\n", getUniqueId(), entryCallinfo->getMethodId(), registeredMethodNames[entryCallinfo->getMethodId()]->getName(), exitingMethodInfo->getMethodId(), registeredMethodNames[exitingMethodInfo->getMethodId()]->getName());
-
-//                entryCallinfo->decreaseThreadsExecutingMethodCounter();
-//assert(false);
-                // TODO: Attempt to discard frames that were lost for any reason
-                threadStack->pop();
-                return logMethodExit();    // no match exit
-            }
-
-            //pop the entry time off the stack & calculate the execution time.
-            threadStack->pop();
-
-            // if this method was called by another update the latter's callee_time
-            if (!threadStack->empty()) {
-                callingMethodInfo = threadStack->top();
-            } else {
-                callingMethodInfo = NULL;    // no calling method
-            }
-
-            PerformanceMeasure *measure = getExitingMethodPerformanceMeasure();
-            exitingMethodInfo->logTimesOnMethodExit(measure, entryCallinfo, callingMethodInfo);
-
-            setCurrentMethodInfo(callingMethodInfo);
-            decreaseNextMethodInfoToUse();
-
-            // we don't delete the entryCallinfo, but let them stack to reuse them with the help of the nextMethodInfoToUse index
-            return measure;
-
-        } else {
-
-            //The FOLLOWING MESSAGE CAN BE PRINTED IF WE PERFORME EXTERNAL INSTRUMENTATION
-            //cout << getName() << " found an empty stack during exit - the last method entered was " << getCurrentMethodId() << " which is " << registeredMethodNames[getCurrentMethodId()] << endl;
-
-
-            //assert(false);
-//            fprintf(stderr, "Found thread %ld, but MethodCallInfo stack empty, during log of %d\n",getUniqueId(), exitingMethodInfo->getMethodId());
-        }
-    } else {
-        fprintf(stderr, "Couldn't find thread MethodCallInfo stack!\n");
-        assert(false);
-    }
-
-    setCurrentMethodInfo(callingMethodInfo);
-    return NULL;
-}
-
-
-
 
 PerformanceMeasure *VexThreadState::onVexMethodExit(const int &methodId) {
     long long startingTime = getThreadTimeBeforeMethodInstrumentation();
@@ -733,7 +652,6 @@ PerformanceMeasure *VexThreadState::onVexMethodExit(const int &methodId) {
         updateThreadLocalTimeSinceLastResumeTo(startingTime);    //otherwise time updated internally in suspend
     }
 
-    //cleanupTimeScalingOfThisMethod(state);
     if (getCurrentMethodInfo() != NULL) {
         if (getCurrentMethodInfo()->getShouldResetVTFactor()) {
             lockShareResourceAccessKey();
@@ -746,13 +664,72 @@ PerformanceMeasure *VexThreadState::onVexMethodExit(const int &methodId) {
     updateExitingMethodInfo(methodId);
 
     return logMethodExit();
-
-
 }
 
+PerformanceMeasure *VexThreadState::logMethodExit() {
+    MethodCallInfo *exitingMethodInfo = getExitingMethodInfo();
+    if (exitingMethodInfo == NULL) {
+        return NULL;
+    }
+
+    // The return value.
+    MethodCallInfo *callingMethodInfo = NULL;
+    stack<MethodCallInfo*>* threadStack = getThreadMethodStack();
+
+    if (threadStack != NULL) {
+        // Pointer to this thread's method stack.
+        if (!threadStack->empty()) {
+            MethodCallInfo *entryCallinfo = threadStack->top();
+
+            if (shouldShowMethodEntries()) {
+                cout << getName() << "(" << getId() << ") exiting " << exitingMethodInfo->getMethodId() << endl; //": " << (registeredMethodNames[exitingMethodInfo->getMethodId()])->getName() << endl;
+            }
+
+            // If the top of the thread method stack (most recently executed
+            // profiled method) is not the same as exitingMethodInfo, then
+            // pop and keep searching.
+            if (entryCallinfo->getMethodId() != exitingMethodInfo->getMethodId()) {
+                threadStack->pop();
+                return logMethodExit();    // no match exit
+            }
+
+            // The top of the thread method stack, entryCallinfo->getMethodId()
+            // is the same as exitingMethodInfo->getMethodId().
+            //
+            // Pop the entry time off the stack & calculate the execution time.
+            threadStack->pop();
+
+            // If this method was called by another update the latter's callee_time
+            if (!threadStack->empty()) {
+                callingMethodInfo = threadStack->top();
+            } else {
+                callingMethodInfo = NULL;    // no calling method
+            }
+
+            PerformanceMeasure *measure = getExitingMethodPerformanceMeasure();
+            exitingMethodInfo->logTimesOnMethodExit(measure, entryCallinfo, callingMethodInfo);
+
+            setCurrentMethodInfo(callingMethodInfo);
+            decreaseNextMethodInfoToUse();
+
+            // We don't delete the entryCallinfo, but let them stack to reuse them with the help of the nextMethodInfoToUse index
+            return measure;
+        } else {
+            //The FOLLOWING MESSAGE CAN BE PRINTED IF WE PERFORME EXTERNAL INSTRUMENTATION
+            //cout << getName() << " found an empty stack during exit - the last method entered was " << getCurrentMethodId() << " which is " << registeredMethodNames[getCurrentMethodId()] << endl;
+            //assert(false);
+            //fprintf(stderr, "Found thread %ld, but MethodCallInfo stack empty, during log of %d\n",getUniqueId(), exitingMethodInfo->getMethodId());
+        }
+    } else {
+        fprintf(stderr, "Couldn't find thread MethodCallInfo stack!\n");
+        assert(false);
+    }
+
+    setCurrentMethodInfo(callingMethodInfo);
+    return NULL;
+}
 
 void VexThreadState::onVexIoMethodEntry(const int &methodId, const int &invocationPointHashValue, const bool &possiblyBlocking) {
-
     long long startingTime = getThreadTimeBeforeIoMethodInstrumentation();
     if (ensureThreadIsNotInNativeWaitingStateWhenEnteringVex(startingTime)) {
         updateThreadLocalTimeSinceLastResumeTo(startingTime);    //otherwise time updated internally in suspend
@@ -761,14 +738,10 @@ void VexThreadState::onVexIoMethodEntry(const int &methodId, const int &invocati
     onIoEntry(possiblyBlocking);
     // Temp solution to update times and suspend before I/O
     setLastCPUTime(startingTime);
-
     setIoInvocationPointHashValue(invocationPointHashValue);
-
 }
 
-
 void VexThreadState::onVexIoMethodExit() {
-
     long long startingTime = getThreadTimeBeforeIoMethodInstrumentation();        // a bit inexact
     inVex = true;
     if (isIgnoringIo()) {
@@ -782,8 +755,6 @@ void VexThreadState::onVexIoMethodExit() {
     //vtflog(agentDebug & mypow2(1), logFile, "beforeIoMethodExit: %s exited %d from point %d %lld (%lld)\n", state->getName(), methodId, state->getIoInvocationPointHashValue()*state->getStackTraceHash(), virtualTimelineController->getGlobalTime(), Time::getVirtualTime());
     addVtfInvocationPoint();    // used to avoid declaring threads NATIVE_WAITING if they mainly waited for acquisition of the managers->mutex lock
 }
-
-
 
 void VexThreadState::onSynchronizeOnModelExit(const int &methodId) {
     inVex = true;
@@ -900,11 +871,9 @@ MethodCallInfo *VexThreadState::getNextMethodCallInfo(const int &methodId) {
 
     if (methodLog->getNextMethodInfoToUse() < methodLog->getMethodInfoStorage()->size()) {
         callinfo = (MethodCallInfo *)methodLog->getMethodInfoStorage()->at(methodLog->getNextMethodInfoToUse());
-        callinfo -> setInfo(methodId, timers->getCurrentCpuTime(), getEstimatedRealTime(), timers->getMonitorWaitingTime(), timers->getIoWaitingTime());
-
+        callinfo->setInfo(methodId, timers->getCurrentCpuTime(), getEstimatedRealTime(), timers->getMonitorWaitingTime(), timers->getIoWaitingTime());
     } else {
-
-        //// Initializing event - protect "new" operator that makes use of low-level locks
+        // Initializing event - protect "new" operator that makes use of low-level locks
         scheduling->lockShareResourceAccessKey();
         callinfo = new MethodCallInfo(methodId, timers->getCurrentCpuTime(), getEstimatedRealTime(), timers->getMonitorWaitingTime(), timers->getIoWaitingTime());
         scheduling->unlockShareResourceAccessKey();
@@ -939,18 +908,11 @@ bool VexThreadState::isModelTimedWaiting() {
     }
 }
 
-
-/*
- * Return the map where a thread keeps the performance durations of the methods it calls
- */
 unordered_map<int, PerformanceMeasure*>* VexThreadState::getThreadPerformanceMeasures() {
-
     if (measures == NULL) {
-        // this should only be executed on the first method call of each method
         scheduling->lockShareResourceAccessKey();
-        measures = new unordered_map<int, PerformanceMeasure *>;    //hash map from methodId to perf measure
+        measures = new unordered_map<int, PerformanceMeasure*>;
         scheduling->unlockShareResourceAccessKey();
-
         if (measures == NULL) {
             return NULL;
         }
@@ -964,22 +926,22 @@ PerformanceMeasure *VexThreadState::getExitingMethodPerformanceMeasure() {
     PerformanceMeasure *measure;
     measures = getThreadPerformanceMeasures();
     unordered_map<int, PerformanceMeasure*>::iterator measures_iterator = measures->find(methodId);
-    if(measures_iterator != measures->end()) {
+    if (measures_iterator != measures->end()) {
         measure = measures_iterator->second;
-    } else {
+    }
+    else {
         scheduling->lockShareResourceAccessKey();
         measure = new PerformanceMeasure(methodId);
         if (measure == NULL) {
             scheduling->unlockShareResourceAccessKey();
             return NULL;
         }
-        (*measures)[methodId] = measure;    // local thread accounting - no sync needed
+        // Local thread accounting - no sync needed
+        (*measures)[methodId] = measure;
         scheduling->unlockShareResourceAccessKey();
     }
     return measure;
 }
-
-
 
 void VexThreadState::setCurrentQueueingNode(CinqsNode *node) {
     modelHandler->setCurrentNode(node);
@@ -1311,10 +1273,9 @@ PerformanceMeasure *StackTraceThreadState::getCurrentStackTraceInfo(const int &m
 
 }
 
-PerformanceMeasure *StackTraceThreadState::getExitingMethodPerformanceMeasure() {
+PerformanceMeasure* StackTraceThreadState::getExitingMethodPerformanceMeasure() {
     PerformanceMeasure *exitingMethodPerfMeasure = ((StackTraceInfo *)getCurrentMethodInfo())->getCorrespondingStackTraceMeasure();
     currentStackTraceInfo = exitingMethodPerfMeasure->getCallingMethod();
-
     return exitingMethodPerfMeasure;
 }
 
