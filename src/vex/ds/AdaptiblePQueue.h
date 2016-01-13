@@ -13,67 +13,90 @@
 #include <iterator>
 #include <iostream>
 #include <algorithm>
+
 using namespace std;
 
-template<typename _Tp, typename _Sequence = vector<_Tp>, typename _Compare  = less<typename _Sequence::value_type> >
+/**
+ * XXX Extends std::priority_queue, intended to hold VexThreadState.
+ */
+template<typename _Tp, typename _Sequence = vector<_Tp>, typename _Compare = less<typename _Sequence::value_type> >
 class AdaptiblePQueue : public std::priority_queue<_Tp, _Sequence, _Compare> {
+ public:
+  /**
+   * Create a max heap out of the underlying vector this->c.
+   */
+  void update() {
+    std::make_heap(this->c.begin(), this->c.end(), this->comp);
+  }
 
-public:
-   void update() {
-	   std::make_heap(this->c.begin(), this->c.end(), this->comp);
-   }
+  /**
+   * Print the contents of this priority queue to \p cout.
+   */
+  void print() {
+    cout << "Runnable threads list" << endl;
+    for (size_t i = 0; i < this->c.size(); ++i) {
+      cout << "\t" << i << ") " << *(this->c[i]) << endl;
+    }
+  }
 
+  /**
+   * Returns true if an element \p state is in the priority queue.
+   */
+  bool find(_Tp state) {
+    typename _Sequence::iterator it = this->c.begin();
+    while (it != this->c.end()) {
+      if (*it++ == state) {
+        return true;
+      }
+    }
+    return false;
+  }
 
-   void print() {
-	   cout << "Runnable threads list" << endl;
-	   for (size_t i =0 ; i < this->c.size(); ++i) {
-		   cout << "\t" << i << ") " << *(this->c[i]) << endl;
-	   }
-   }
+  /**
+   * Returns the head of the queue, that is, the largest element.
+   */
+  typename _Sequence::iterator getQueueStart() {
+    return this->c.begin();
+  }
 
-   bool find(_Tp state) {
-	   typename _Sequence::iterator it = this->c.begin();
-	   while (it != this->c.end()) {
-		   if (*it++ == state) {
-			   return true;
-		   }
-	   }
-	   return false;
-   }
+  /**
+   * Returns the tail of the queue, that is, the smallest element.
+   */
+  typename _Sequence::iterator getQueueEnd() {
+    return this->c.end();
+  }
 
-   typename _Sequence::iterator getQueueStart() {
-	   return this->c.begin();
-	}
+  /**
+   * Erase an element \p state from this priority queue.
+   */
+  void erase(_Tp state) {
+    typename _Sequence::iterator it = this->c.begin();
+    while (it != this->c.end()) {
+      if (*it == state) {
+        this->c.erase(it);
+        break;
+      }
+      ++it;
+    }
+    update();
+  }
 
-   typename _Sequence::iterator getQueueEnd() {
-	   return this->c.end();
-	}
-
-   void erase(_Tp state) {
-	   typename _Sequence::iterator it = this->c.begin();
-	   while (it != this->c.end()) {
-		   if (*it == state) {
-			   this->c.erase(it);
-			   break;
-		   }
-		   ++it;
-	   }
-	   update();
-   }
-
-   // Just in case for some unknown reason a multiple copy of a thread state is left behind, call this onThreadEnd
-   void eraseAll(_Tp state) {
-	   typename _Sequence::iterator it = this->c.begin();
-	   while (it != this->c.end()) {
-		   if (*it == state) {
-			   it = this->c.erase(it);
-		   } else {
-			   ++it;
-		   }
-	   }
-	   update();
-   }
-
+  /**
+   * Erase all elements matching \p state from this priority queue.
+   * Called by onThreadEnd just in case for some unknown reason a multiple copy
+   * of a thread state is left behind.
+   */
+  void eraseAll(_Tp state) {
+    typename _Sequence::iterator it = this->c.begin();
+    while (it != this->c.end()) {
+      if (*it == state) {
+        it = this->c.erase(it);
+      } else {
+        ++it;
+      }
+    }
+    update();
+  }
 };
 
 #endif /* ADAPTIBLEPQUEUE_H_ */

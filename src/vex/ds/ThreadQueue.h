@@ -18,45 +18,154 @@
 
 class ThreadManager;
 
+/**
+ * Maintains a thread-safe queue of threads, using an access lock and
+ * AdaptiblePQueue as the underlying data structure.
+ */
 class ThreadQueue {
-public:
-	ThreadQueue();
+ public:
+  /**
+   * Constructor.
+   */
+  ThreadQueue();
 
-	void lockMutex();
-	void unlockMutex();
+  /**
+   * Destructor.
+   */
+  ~ThreadQueue();
 
-	void push(VexThreadState *state);
-	VexThreadState *top();
-	VexThreadState *getNext();
-	VexThreadState *getNextIfEqualsElseReturnTop(VexThreadState *state, ThreadManager *requestingManager);
-	VexThreadState *getNext(ThreadManager *requestingManager);
+  /**
+   * Locks #mutex.
+   */
+  void lockMutex();
 
-	bool empty();
-	unsigned int size();
-	void setThreadToNextBiggestErt(VexThreadState *state);
-	bool isNextRunnableThreadBefore(const long long &timestamp);
+  /**
+   * Unlocks #mutex.
+   */
+  void unlockMutex();
 
-	void update();
-	void erase(VexThreadState *state);
-	void print();
+  /**
+   * Insert \p state into the thread queue.
+   */
+  void push(VexThreadState *state);
 
-	bool find(VexThreadState *state);
-	long long getHighestRunnableTime(VexThreadState *askingThread);	// used for yield
-	~ThreadQueue();
+  /**
+   * Return the top of the thread queue without removing it.
+   */
+  VexThreadState *top();
 
-	void setLog(Log *logger) {
-		queueLogger = logger;
-	}
+  /**
+   * Remove and return the top of the thread queue.
+   */
+  VexThreadState *getNext();
 
-	std::string getAllCallingMethodsUntil(short maxStack);
-	void invalidateExpiredIoPredictions(const long long &currentRealTime);
 
-private:
-	void recursivelyUpdatePendingIoRequests(VexThreadState *state, const long long &currentRealTime);
-	AdaptiblePQueue<VexThreadState *, std::deque<VexThreadState *>, threadStatePtr_compare> *threadsQueue;
-	pthread_mutex_t mutex;
-	long long highestRunnableTime;
-	Log *queueLogger;
+  /**
+   * If \p state equals the top of the thread queue then pop the thread queue
+   * and return \p state, otherwise just return the top of the thread queue.
+   */
+  VexThreadState *getNextIfEqualsElseReturnTop(VexThreadState *state, ThreadManager *requestingManager);
+
+  /**
+   * Remove and return the top of the queue from manager \p requestingManager.
+   */
+  VexThreadState *getNext(ThreadManager *requestingManager);
+
+  /**
+   * Return true if #threadsQueue is empty.
+   */
+  bool empty();
+
+  /**
+   * Return the size of #threadsQueue.
+   */
+  unsigned int size();
+
+  /**
+   * Find thread \p state in #threadQueue, then forward its virtual timestamp
+   * to thread with the next highest virtual timestamp that is not currently
+   * simulating a model.
+   *
+   * This is used to force the next thread in the queue to progress if the thread
+   * \p state is blocked while executing a simulated model method. In this case,
+   * allowing another thread to proceed resolves the deadlock.
+   */
+  void setThreadToNextBiggestErt(VexThreadState *state);
+
+  /**
+   * Return true if the virtual timestamp of the thread at the head of the queue
+   * is smaller than \p timestamp.
+   */
+  bool isNextRunnableThreadBefore(const long long &timestamp);
+
+  /**
+   * Update the heap structure of the underlying priority queue data structure.
+   */
+  void update();
+
+  /**
+   * Erase thread \p state from the priority queue.
+   */
+  void erase(VexThreadState *state);
+
+  /**
+   * Print the contents of the priority queue to \p cout.
+   */
+  void print();
+
+  /**
+   * Return true if thread \p state is in the priority queue.
+   */
+  bool find(VexThreadState *state);
+
+  /**
+   * Get the suspended or native waiting thread with the largest timestamp
+   * bigger than the timestamp of \p askingThread in the priority queue.
+   */
+  long long getHighestRunnableTime(VexThreadState *askingThread);	// used for yield
+
+  /**
+   * Set #queueLogger to \p logger.
+   */
+  void setLog(Log *logger) {
+    queueLogger = logger;
+  }
+
+  /**
+   * Used for debugging to print the stack trace of the queue's updating points
+   */
+  std::string getAllCallingMethodsUntil(short maxStack);
+
+  /**
+   * Invalidate all expired I/O predictions.
+   */
+  void invalidateExpiredIoPredictions(const long long &currentRealTime);
+
+ private:
+  /**
+   * Recursively invalidate all expired I/O predictions.
+   */
+  void recursivelyUpdatePendingIoRequests(VexThreadState *state, const long long &currentRealTime);
+
+  /**
+   * Underlying data structure holding a priority queue of thread states.
+   */
+  AdaptiblePQueue<VexThreadState *, std::deque<VexThreadState *>, threadStatePtr_compare> *threadsQueue;
+
+  /**
+   * Lock for synchronisation.
+   */
+  pthread_mutex_t mutex;
+
+  /**
+   * Debugging log.
+   */
+  Log *queueLogger;
+
+  /**
+   * Unused.
+   */
+  long long highestRunnableTime;
 };
 
 #endif /*THREADQUEUE_H_*/
