@@ -19,7 +19,7 @@
 class ThreadManager;
 
 /**
- * Maintains a thread-safe queue of threads, using an access lock and
+ * XXX Maintains a thread-safe queue of threads, using an access lock and
  * AdaptiblePQueue as the underlying data structure.
  */
 class ThreadQueue {
