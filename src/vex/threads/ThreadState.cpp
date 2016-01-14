@@ -191,7 +191,6 @@ void VexThreadState::onVexExitWithCpuTimeUpdate() {
 }
 
 void VexThreadState::onWrappedWaitingStart() {
-
     long long startingTime = timers->getThreadTimeBeforeMethodInstrumentation();
     ThreadManager *manager = getCurrentSchedulerOnVexEntry(startingTime);
 
@@ -231,8 +230,6 @@ void VexThreadState::onWrappedWaitingEnd() {
     onVexExitWithCpuTimeUpdate();
 }
 
-
-
 void VexThreadState::onVexEntry() {
     long long startingTime = getVirtualTime();
     if (ensureThreadIsNotInNativeWaitingStateWhenEnteringVex(startingTime)) {
@@ -258,7 +255,6 @@ long long VexThreadState::getRealTimeOnVexEntry() {
     lockShareResourceAccessKey();
     return startingTime;
 }
-
 
 void VexThreadState::onVexExitWithRealTimeUpdate() {
     unlockShareResourceAccessKey();
@@ -289,11 +285,10 @@ bool VexThreadState::ensureThreadIsNotInNativeWaitingStateWhenEnteringVex(const 
     if (!isRunning()) {
         cout << "Illegal state for thread " << getName() << ": " << getCurrentStateName() << endl;
     }
+
     assert(getThreadCurrentlyControllingManager() != NULL);
     return threadIsNotInNativeWaiting;
 }
-
-
 
 bool VexThreadState::onReplacedTimedWaiting(const long &objectId, const long &timeout) {
     onVexEntry();
@@ -337,7 +332,6 @@ bool VexThreadState::onReplacedWaiting(const long &objectId, const bool &resumeS
 
 
 void VexThreadState::onBlockedWaitingInVex() {
-//    onVexExitWithRealTimeUpdate();
     unlockShareResourceAccessKey();
     blockHereUntilSignaled();
     lockShareResourceAccessKey();
@@ -782,26 +776,6 @@ void VexThreadState::onSynchronizeOnModelExit(const int &methodId) {
     assert(VexThreadState::forceGetCurrentThreadState() != NULL && VexThreadState::getCurrentThreadState() != NULL);
     onVexExit();
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 bool VexThreadState::isThreadBlockedInNativeWait() {
     return isThreadBlockedInNativeWait(Time::getRealTime());

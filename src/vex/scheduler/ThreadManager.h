@@ -38,320 +38,379 @@ void *pthreadManagerWorker(void *);
  */
 class ThreadManager {
 public:
+  ThreadManager(unsigned int _id, VirtualTimelineController *_globalTimer, ThreadQueue *runnableThreads, IoSimulator *, ThreadRegistry *, ObjectRegistry *);
+  virtual ~ThreadManager();
 
-	ThreadManager(unsigned int _id, VirtualTimelineController *_globalTimer, ThreadQueue *runnableThreads, IoSimulator *, ThreadRegistry *, ObjectRegistry *);
-	virtual ~ThreadManager();
+  // The methods that perform the actions upon thread states changes
+  virtual void setSuspended(VexThreadState * state);
 
-	// The methods that perform the actions upon thread states changes
-	virtual void setSuspended(VexThreadState * state);
-	virtual void setRunningThread(VexThreadState * state);
-    virtual void setSuspendedAndPushToRunnables(VexThreadState * state);
-    virtual void setIoThread(VexThreadState * state, const bool &learning);
-    void setInModelSimulation(VexThreadState *state, const bool &afterModelSimulation);
+  /**
+   * Attempt to change the thread \p state to the currently running thread (in
+   * state RUNNING) and update its estimated "virtual" wallclock time
+   * (Timers#estimatedRealTime) to the current global virtual time.
+   *
+   * If the thread \p state could not be changed, then find the thread in the
+   * runnable thread queue and forcibly suspend it without updating its timers.
+   */
+  virtual void setRunningThread(VexThreadState *state);
 
-    virtual void setWaitingThread(VexThreadState * state);
+  /**
+   * Suspend thread \p state and push it into the runnable thread queue
+   * #runnableThreads.
+   */
+  virtual void setSuspendedAndPushToRunnables(VexThreadState * state);
 
-    virtual void setTimedWaitingThread(VexThreadState * state);
-    virtual void setNativeWaiting(VexThreadState * state);
+  virtual void setIoThread(VexThreadState * state, const bool &learning);
+  void setInModelSimulation(VexThreadState *state, const bool &afterModelSimulation);
 
-    virtual void setSystemCallThread(VexThreadState *state);
+  virtual void setWaitingThread(VexThreadState * state);
 
+  virtual void setTimedWaitingThread(VexThreadState * state);
+  virtual void setNativeWaiting(VexThreadState * state);
 
-    // The methods that are triggered in the various events of the thread lifecycle
-    virtual void onThreadSpawn(VexThreadState * state);
-    virtual void onThreadEnd(VexThreadState * state);
-
-    virtual void onThreadYield(VexThreadState * state, const long long & startingTime);
-
-
-    virtual void onWrappedWaitingStart(VexThreadState *state, const long &startingTime);
-    virtual void onWrappedWaitingEnd(VexThreadState *state, const long &startingTime);
-    virtual void onWrappedWaitingInterrupt(VexThreadState *state, long interruptionTime);
-
-    virtual void onWrappedTimedWaitingStart(VexThreadState *state, const long &startingTime, const long &timeout);
-    virtual void onWrappedTimedWaitingEnd(VexThreadState *state);
-
-    virtual void onWrappedTimedWaitingInterrupt(VexThreadState *state, const long long &interruptionTime);
-
-    virtual void onReplacedWaiting(VexThreadState *state);
-    virtual void onReplacedTimedWaiting(VexThreadState *state, const long &timeout);
-    virtual void onAnyReplacedWaitingInterrupt(VexThreadState *state, const long long &interruptionTime);
-
-    virtual void onWrappedBackgroundLoadExecutionStart();
-    virtual void onWrappedBackgroundLoadExecutionEnd(const long long &executionDuration);
-
-//    virtual void onThreadWaitingStart(const long long &startingTime, VexThreadState *state);
-//    virtual void onThreadWaitingStart(VexThreadState * state);
-//    virtual void onThreadWaitingStartLockless(VexThreadState *state);
-//    virtual void onThreadWaitingEnd(VexThreadState *state);
-//    virtual void onThreadNativeWaitingStart(const long long &startingTime, VexThreadState *state);
-//    virtual void onThreadNativeWaitingEnd(VexThreadState *state);
-//    virtual void onThreadTimedWaitingStart(VexThreadState * state, long &timeout);
-//    virtual void onThreadContendedEnter(VexThreadState * state, const long long & presetTime);
-//    virtual void onThreadContendedEntered(VexThreadState *state);
-//    void onThreadExplicitlySetWaiting(const long long &startingTime, VexThreadState *state);
-//	void onThreadExplicitlyManageTimedWaitingAfterReturningFromRealTime(VexThreadState *state, const int &returnValue);
-//    void onThreadExplicitlySetTimedWaiting(const long long &startingTime, VexThreadState *state, const long &timeout);
-//    virtual void onThreadTimedWaitingEnd(VexThreadState * state, const long  & interruptTime);
+  virtual void setSystemCallThread(VexThreadState *state);
 
 
+  // The methods that are triggered in the various events of the thread lifecycle
+  virtual void onThreadSpawn(VexThreadState * state);
+  virtual void onThreadEnd(VexThreadState * state);
 
-    // Thread lifecycle related
-    virtual void suspendLooseCurrentThread(VexThreadState *state, const long long & startingTime);
-    virtual void suspendCurrentThread(VexThreadState * state, const long long & startingTime, const char & options);
-    virtual bool shouldCurrentThreadSuspend(VexThreadState * state);
-    virtual void blockCurrentThread(VexThreadState * state);
-    virtual void resumeThread(VexThreadState * state);
-    virtual bool changeThreadStateToRunning(VexThreadState * state);
-
-    /**
-     * Change the local scaling factor for thread \p state to \p scalingFactor
-     * and unconditionally wake up the ThreadManager.
-     */
-    virtual void notifySchedulerForVirtualizedTime(VexThreadState * state, const float &scalingFactor);
-
-    void unsetCurrentThreadFromRunningThread(VexThreadState * state);
-    void handleIOPerformingThread(VexThreadState * state);
-    virtual void interruptTimedWaitingThread(VexThreadState * state);
+  virtual void onThreadYield(VexThreadState * state, const long long & startingTime);
 
 
-    virtual std::string getStats();
+  virtual void onWrappedWaitingStart(VexThreadState *state, const long &startingTime);
+  virtual void onWrappedWaitingEnd(VexThreadState *state, const long &startingTime);
+  virtual void onWrappedWaitingInterrupt(VexThreadState *state, long interruptionTime);
 
-    inline void lockMutex() {
-    	pthread_mutex_lock(&mutex);
-    };
+  virtual void onWrappedTimedWaitingStart(VexThreadState *state, const long &startingTime, const long &timeout);
+  virtual void onWrappedTimedWaitingEnd(VexThreadState *state);
 
-    inline void unlockMutex() {
-    	pthread_mutex_unlock(&mutex);
-    };
+  virtual void onWrappedTimedWaitingInterrupt(VexThreadState *state, const long long &interruptionTime);
 
-    // Scheduler lifecycle related
-    virtual void start();
-    virtual void end();
+  virtual void onReplacedWaiting(VexThreadState *state);
+  virtual void onReplacedTimedWaiting(VexThreadState *state, const long &timeout);
+  virtual void onAnyReplacedWaitingInterrupt(VexThreadState *state, const long long &interruptionTime);
 
-    // Scheduler timeslot handling - other classes (like I/O handling ones) are allowed to dynamically adapt this
-    void setSchedulerTimeslot(const long  & timeslot);
-    void setDefaultSchedulerTimeslot(const long &timeslot);
-    void minimizeSchedulerTimeslot();
-    void limitNextTimeslice();
-    void resetDefaultSchedulerTimeslot();
+  virtual void onWrappedBackgroundLoadExecutionStart();
+  virtual void onWrappedBackgroundLoadExecutionEnd(const long long &executionDuration);
 
-    // Signal the scheduler thread
-    virtual int wakeup();
-    virtual int conditionalWakeup(VexThreadState * state);
-    virtual int unconditionalWakeup();
-    void unFreeze();
-    void setFreeze();
-    int indefiniteWait();
-
-    // Time updating related
-    virtual void updateCurrentThreadVT(VexThreadState * state);	// The next three use virtual locklessUpdateTimeBy() so overriding it might be enough
-    virtual void setCurrentThreadVT(const long long &startingTime, VexThreadState *state);
-    virtual void commitIoDuration(VexThreadState * state, const long long &actualIoDuration);
-    virtual long long getCurrentGlobalTime();
-    virtual void commitBackgroundLoadDuration(const long long &backgroundLoadDuration);
-
-//    void increaseRunningThreadTimeBy(const long long &duration);
-
-    void suspendModelSimulationFinishingThread(VexThreadState *state);
-
-    // Debugging related
-    void setLog(Log *);
-    void setVisualizer(Visualizer *viz);
-
-
-    // Related to the queue with the runnable threads
-    void pushIntoRunnableQueue(VexThreadState * state);			// invoked explicitly by model handling code
-    void updateRunnableQueue();
-
-    // Outputs for debugging reasons
-    void ps();
-    void printThreadStates();
-    void printRunningThread();
-    void printRunningThreadWithCore();
-    void printVirtualTimeForwardLeapSnapshots(const char *filename);
-    void printTimesliceStats();
-
-    void toggleRuntimeDebugging() {
-    	runtimeDebuggingEnabled ^= 1;		// debugging messages to be toggled on/off during the simulation by sending SIGALRM to a scheduler thread
-    }
-
-    void enableSchedulerStats();	// general stats that are printed out in the end of the simulation
-	inline bool areSchedulerStatsEnabled() {
-		return schedulerStats;
-	};
+  //    virtual void onThreadWaitingStart(const long long &startingTime, VexThreadState *state);
+  //    virtual void onThreadWaitingStart(VexThreadState * state);
+  //    virtual void onThreadWaitingStartLockless(VexThreadState *state);
+  //    virtual void onThreadWaitingEnd(VexThreadState *state);
+  //    virtual void onThreadNativeWaitingStart(const long long &startingTime, VexThreadState *state);
+  //    virtual void onThreadNativeWaitingEnd(VexThreadState *state);
+  //    virtual void onThreadTimedWaitingStart(VexThreadState * state, long &timeout);
+  //    virtual void onThreadContendedEnter(VexThreadState * state, const long long & presetTime);
+  //    virtual void onThreadContendedEntered(VexThreadState *state);
+  //    void onThreadExplicitlySetWaiting(const long long &startingTime, VexThreadState *state);
+  //	void onThreadExplicitlyManageTimedWaitingAfterReturningFromRealTime(VexThreadState *state, const int &returnValue);
+  //    void onThreadExplicitlySetTimedWaiting(const long long &startingTime, VexThreadState *state, const long &timeout);
+  //    virtual void onThreadTimedWaitingEnd(VexThreadState * state, const long  & interruptTime);
 
 
 
-    static FILE *managerLogfile;
-    static const int SUSPEND_OPT_DONT_UPDATE_THREAD_TIME;
-    static const int SUSPEND_OPT_FORCE_SUSPEND;
-    static const int SUSPEND_OPT_THREAD_ALREADY_IN_LIST;
-    static const int SUSPEND_OPT_DONT_WAKE_UP_SCHEDULER;
-    static const int SUSPEND_OPT_DONT_NOTIFY_CLIENT;
-    static const int SUSPEND_OPT_DONT_MAKE_REQUEST;
+  // Thread lifecycle related
 
-    void increasePendingNotifications() {
-    	++pendingNotifications;
-    }
-    void clearPendingNotifications() {
-		pendingNotifications = 0;
-    }
+  /**
+   * Remove thread \p state from ThreadRegistry#nativeWaitingThreadsPQueue, and
+   * if there are runnable threads then suspend \p state, push it to the
+   * runnable thread queue, then block on a condition variable.
+   *
+   * Otherwise, if the runnable thread queue is empty, set the thread \p state
+   * as the currently running thread.
+   *
+   * When resumed, set thread \p state as the currently running thread.
+   *
+   * This method is a variant of #suspendCurrentThread that does not use any
+   * locks, since a "loose" thread cannot be interrupted by any scheduler.
+   */
+  virtual void suspendLooseCurrentThread(VexThreadState *state, const long long & startingTime);
 
-    unsigned int schedulerThreadId;
+  virtual void suspendCurrentThread(VexThreadState * state, const long long & startingTime, const char & options);
+  virtual bool shouldCurrentThreadSuspend(VexThreadState * state);
 
-    
-    unsigned long getPosixSignalsSent() {
-    	return posixSignalsSent;
-    };
-    unsigned int const & getId() const {
-    	return managerId;
-    };
+  /**
+   * Block the thread \p state using a condition variable until it is signalled.
+   *
+   * When resumed, set thread \p state as the currently running thread.
+   */
+  virtual void blockCurrentThread(VexThreadState *state);
 
-    bool keyHeldBy(const int &threadId);
+  virtual void resumeThread(VexThreadState * state);
 
-    bool anotherThreadAlreadySetRunning(VexThreadState * state);
+  /**
+   * If there is a currently running thread that isn't the thread \p state, then
+   * return false; else set the thread \p state to the currently running thread,
+   * set its thread manager to be this thread manager and return true.
+   */
+  virtual bool changeThreadStateToRunning(VexThreadState *state);
 
-	void _notifySchedulerForVirtualizedTime(VexThreadState *state);
+  /**
+   * Change the local scaling factor for thread \p state to \p scalingFactor
+   * and unconditionally wake up the ThreadManager.
+   */
+  virtual void notifySchedulerForVirtualizedTime(VexThreadState * state, const float &scalingFactor);
 
-	bool testIsValidToLeapInVirtualTimeTo(VexThreadState *state);
+  /**
+   * Set #runningThread to NULL if it is the same thread as \p state.
+   */
+  void unsetCurrentThreadFromRunningThread(VexThreadState *state);
 
-	vector<VirtualTimeForwardLeapSnapshot *> vflStatistics;
+  void handleIOPerformingThread(VexThreadState * state);
+  virtual void interruptTimedWaitingThread(VexThreadState *state);
 
-	bool runtimeDebuggingEnabled;	// used for debugging (from SIGALRM handler)
-	static void enableTimeslotMinimazationOnNw();
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  virtual std::string getStats();
+
+  inline void lockMutex() {
+    pthread_mutex_lock(&mutex);
+  };
+
+  inline void unlockMutex() {
+    pthread_mutex_unlock(&mutex);
+  };
+
+  // Scheduler lifecycle related
+  virtual void start();
+  virtual void end();
+
+  // Scheduler timeslot handling - other classes (like I/O handling ones) are allowed to dynamically adapt this
+  void setSchedulerTimeslot(const long  & timeslot);
+  void setDefaultSchedulerTimeslot(const long &timeslot);
+  void minimizeSchedulerTimeslot();
+  void limitNextTimeslice();
+  void resetDefaultSchedulerTimeslot();
+
+  // Signal the scheduler thread
+  virtual int wakeup();
+  virtual int conditionalWakeup(VexThreadState * state);
+  virtual int unconditionalWakeup();
+  void unFreeze();
+  void setFreeze();
+  int indefiniteWait();
+
+  // Time updating related
+  virtual void updateCurrentThreadVT(VexThreadState * state);	// The next three use virtual locklessUpdateTimeBy() so overriding it might be enough
+  virtual void setCurrentThreadVT(const long long &startingTime, VexThreadState *state);
+  virtual void commitIoDuration(VexThreadState * state, const long long &actualIoDuration);
+  virtual long long getCurrentGlobalTime();
+  virtual void commitBackgroundLoadDuration(const long long &backgroundLoadDuration);
+
+  //    void increaseRunningThreadTimeBy(const long long &duration);
+
+  void suspendModelSimulationFinishingThread(VexThreadState *state);
+
+  // Debugging related
+  void setLog(Log *);
+  void setVisualizer(Visualizer *viz);
+
+
+  // Related to the queue with the runnable threads
+  void pushIntoRunnableQueue(VexThreadState * state);			// invoked explicitly by model handling code
+  void updateRunnableQueue();
+
+  // Outputs for debugging reasons
+  void ps();
+  void printThreadStates();
+  void printRunningThread();
+  void printRunningThreadWithCore();
+  void printVirtualTimeForwardLeapSnapshots(const char *filename);
+  void printTimesliceStats();
+
+  void toggleRuntimeDebugging() {
+    runtimeDebuggingEnabled ^= 1;		// debugging messages to be toggled on/off during the simulation by sending SIGALRM to a scheduler thread
+  }
+
+  void enableSchedulerStats();	// general stats that are printed out in the end of the simulation
+  inline bool areSchedulerStatsEnabled() {
+    return schedulerStats;
+  };
+
+
+
+  static FILE *managerLogfile;
+  static const int SUSPEND_OPT_DONT_UPDATE_THREAD_TIME;
+  static const int SUSPEND_OPT_FORCE_SUSPEND;
+  static const int SUSPEND_OPT_THREAD_ALREADY_IN_LIST;
+  static const int SUSPEND_OPT_DONT_WAKE_UP_SCHEDULER;
+  static const int SUSPEND_OPT_DONT_NOTIFY_CLIENT;
+  static const int SUSPEND_OPT_DONT_MAKE_REQUEST;
+
+  void increasePendingNotifications() {
+    ++pendingNotifications;
+  }
+  void clearPendingNotifications() {
+    pendingNotifications = 0;
+  }
+
+  unsigned int schedulerThreadId;
+
+
+  unsigned long getPosixSignalsSent() {
+    return posixSignalsSent;
+  };
+  unsigned int const & getId() const {
+    return managerId;
+  };
+
+  bool keyHeldBy(const int &threadId);
+
+  bool anotherThreadAlreadySetRunning(VexThreadState * state);
+
+  void _notifySchedulerForVirtualizedTime(VexThreadState *state);
+
+  bool testIsValidToLeapInVirtualTimeTo(VexThreadState *state);
+
+  vector<VirtualTimeForwardLeapSnapshot *> vflStatistics;
+
+  bool runtimeDebuggingEnabled;	// used for debugging (from SIGALRM handler)
+  static void enableTimeslotMinimazationOnNw();
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 protected:
-	static bool minimizeTimeslotOnNw;		//TODO: this is a hack - make nice class and unite with I/O induced minimization
+  static bool minimizeTimeslotOnNw;		//TODO: this is a hack - make nice class and unite with I/O induced minimization
 
-    VexThreadState *lastSuspended;
-    ThreadQueue *runnableThreads;
+  VexThreadState *lastSuspended;
 
-    Visualizer *visualizer;
-    IoSimulator *ioSimulator;
-    ObjectRegistry *objectRegistry;
-    ThreadRegistry *threadRegistry;
+  ThreadQueue *runnableThreads;
 
-	Log *logger;
+  Visualizer *visualizer;
+  IoSimulator *ioSimulator;
+  ObjectRegistry *objectRegistry;
+  ThreadRegistry *threadRegistry;
 
-    pthread_mutex_t threadStatsMutex;
+  Log *logger;
 
-    // The currently running Thread is treated as a shared resource
-    VexThreadState *runningThread;
-    pthread_spinlock_t runningThreadSpinLock;
-    void lockRunningThread();
-    void unlockRunningThread();
-    VexThreadState *getRunningThread();
+  pthread_mutex_t threadStatsMutex;
 
-    pthread_mutex_t mutex;
-    bool running;
+  /**
+   * A pointer to the currently running thread and is treated as a shared
+   * resource.
+   */
+  VexThreadState *runningThread;
+  pthread_spinlock_t runningThreadSpinLock;
 
-    virtual void registerSignalHandler();
-    //void registerSignalHandler(int sigcode, void (*f)(int));
-    void registerSignalHandler(int sigcode, void (*f)(int));
+  /**
+   * Acquire the spin lock #runningThreadSpinLock.
+   */
+  void lockRunningThread();
 
-    void updateThreadList();
+  /**
+   * Release the spin lock #runningThreadSpinLock.
+   */
+  void unlockRunningThread();
 
-    void resumeModelSimulation(VexThreadState *state);
-    void pollThreadToCheckIfActuallyRunning(VexThreadState *state);
+  VexThreadState *getRunningThread();
 
-    virtual bool continueThread(VexThreadState *state);
-    bool suspendThread(VexThreadState * state);
-    virtual bool noThreadsToSchedule();
-    virtual void afterModelSimulation();
+  pthread_mutex_t mutex;
+  bool running;
 
-    virtual bool isSignalledThreadGoingToSuspend(VexThreadState *state);
-    virtual void onIntentionToBeDisregarded(VexThreadState *state);
-    virtual void onIntentionToKeepOnRunning(VexThreadState *state);
+  virtual void registerSignalHandler();
+  //void registerSignalHandler(int sigcode, void (*f)(int));
+  void registerSignalHandler(int sigcode, void (*f)(int));
 
-    bool isSignalledThreadStillRunning(VexThreadState *state);
+  void updateThreadList();
 
-    bool schedulerStats;
-    long normalTimeslotsFinished;
-    unsigned int timesOfMinimumTimeslotForcing;
-    QStats<long long> durationsOfInterruptedTimeslots;
+  void resumeModelSimulation(VexThreadState *state);
+  void pollThreadToCheckIfActuallyRunning(VexThreadState *state);
 
-    pthread_cond_t cond;
-    int freeze;
-    long schedulerTimeslot;
-    long defaultSchedulerTimeslot;
-    bool forceMinimumTimeslotSelection;
+  virtual bool continueThread(VexThreadState *state);
+  bool suspendThread(VexThreadState * state);
+  virtual bool noThreadsToSchedule();
+  virtual void afterModelSimulation();
 
-    long long lastGlobalVirtualTime;
-    long long lastTotalThreadERT;	// a sum of all current virtual timestamps (to show whether any progress is made)
+  virtual bool isSignalledThreadGoingToSuspend(VexThreadState *state);
+  virtual void onIntentionToBeDisregarded(VexThreadState *state);
+  virtual void onIntentionToKeepOnRunning(VexThreadState *state);
 
-    // Main scheduling algorithm methods
-    bool isValidToLeapInVirtualTimeTo(VexThreadState *state);
+  bool isSignalledThreadStillRunning(VexThreadState *state);
 
-    void doControllerWait();
-    virtual void suspendRunningResumeNext();
-    virtual void interruptTimedOutIoThread(VexThreadState *state);
-    void _simulateModel(VexThreadState *state, long long &totalExecutionTime);
-    virtual bool _suspendThread(VexThreadState *state);
+  bool schedulerStats;
+  long normalTimeslotsFinished;
+  unsigned int timesOfMinimumTimeslotForcing;
+  QStats<long long> durationsOfInterruptedTimeslots;
 
-    void setThreadToMaximumPriority();
+  pthread_cond_t cond;
+  int freeze;
+  long schedulerTimeslot;
+  long defaultSchedulerTimeslot;
+  bool forceMinimumTimeslotSelection;
 
-    void generateThreadStats(VexThreadState *state);
+  long long lastGlobalVirtualTime;
+  long long lastTotalThreadERT;	// a sum of all current virtual timestamps (to show whether any progress is made)
 
-    bool hasResumedModelSimulationRunToCompletion(VexThreadState *state, long long &totalExecutionTime);
+  // Main scheduling algorithm methods
+  bool isValidToLeapInVirtualTimeTo(VexThreadState *state);
 
+  void doControllerWait();
+  virtual void suspendRunningResumeNext();
+  virtual void interruptTimedOutIoThread(VexThreadState *state);
+  void _simulateModel(VexThreadState *state, long long &totalExecutionTime);
+  virtual bool _suspendThread(VexThreadState *state);
 
-    // Debugging members
-    VexThreadState *lastResumed;
-    int lastSignaledTids[100];
-    int lastSignaledPtr;
+  void setThreadToMaximumPriority();
 
-    inline int tkill(int tid, int sig) {
-    	// Decided here that no redefinition of sigaction action is needed after r110
-    	lastSignaledTids[(lastSignaledPtr++)%100] = tid;
-    	return (int) syscall(SYS_tkill, tid, sig);
-    };
+  void generateThreadStats(VexThreadState *state);
 
-    virtual void locklessUpdateTimeBy(const long long &timeDiff, VexThreadState *state);
-
-    unsigned int pendingNotifications;
-
-    // Internal factored methods
-    void _onThreadWaitingStart(VexThreadState *state);
-    void _setIoThread(VexThreadState *state, const bool &learning);
+  bool hasResumedModelSimulationRunToCompletion(VexThreadState *state, long long &totalExecutionTime);
 
 
-    // Timeslice monitoring
-    bool schedulerWaitingForTimeslotExpiry;
-    long long aggregateWaitingTime;
-    long long aggregateWaitingTimeSquared; 
-    unsigned int waitingTimeSamples;
-    unsigned int managerId;
-    unsigned long schedulerTid;
-    unsigned long posixSignalsSent;
+  // Debugging members
+  VexThreadState *lastResumed;
+  int lastSignaledTids[100];
+  int lastSignaledPtr;
 
-    unsigned int timedOutsFailed;
-    unsigned int timedOutsSucceeded;
-    unsigned int timesYielding;
+  inline int tkill(int tid, int sig) {
+    // Decided here that no redefinition of sigaction action is needed after r110
+    lastSignaledTids[(lastSignaledPtr++)%100] = tid;
+    return (int) syscall(SYS_tkill, tid, sig);
+  };
 
-	void lockingUpdateTimeBy(const long long &timeDiff, VexThreadState *state);
+  virtual void locklessUpdateTimeBy(const long long &timeDiff, VexThreadState *state);
 
-	inline float const & getRunningThreadScalingFactor();
-	void unsetCurrentThreadFromRunningThreadAndWakeup(VexThreadState *state);
+  unsigned int pendingNotifications;
 
-	long long decreaseSchedulerSleepingTimeBy;
+  // Internal factored methods
+  void _onThreadWaitingStart(VexThreadState *state);
+  void _setIoThread(VexThreadState *state, const bool &learning);
 
-	VirtualTimelineController *virtualTimelineController;
 
-	float currentTimeScalingFactor;
+  // Timeslice monitoring
+  bool schedulerWaitingForTimeslotExpiry;
+  long long aggregateWaitingTime;
+  long long aggregateWaitingTimeSquared; 
+  unsigned int waitingTimeSamples;
+  unsigned int managerId;
+  unsigned long schedulerTid;
+  unsigned long posixSignalsSent;
 
-	bool showLastContinued;
-	bool showHandling;
+  unsigned int timedOutsFailed;
+  unsigned int timedOutsSucceeded;
+  unsigned int timesYielding;
 
-	struct timespec lastRealTimeTs;
+  void lockingUpdateTimeBy(const long long &timeDiff, VexThreadState *state);
+
+  inline float const & getRunningThreadScalingFactor();
+  void unsetCurrentThreadFromRunningThreadAndWakeup(VexThreadState *state);
+
+  long long decreaseSchedulerSleepingTimeBy;
+
+  VirtualTimelineController *virtualTimelineController;
+
+  float currentTimeScalingFactor;
+
+  bool showLastContinued;
+  bool showHandling;
+
+  struct timespec lastRealTimeTs;
 private:
-    void init();		// initialize members
+  void init();		// initialize members
 
-    bool timeWaitingFactorChanged;
+  bool timeWaitingFactorChanged;
 
-    int numberOfNativeWaitingThreads;
-    void recursivelyUpdatePendingIoRequests(VexThreadState * state, const long long &currentRealTime);
-    void ignoreSignalHandler();
+  int numberOfNativeWaitingThreads;
+  void recursivelyUpdatePendingIoRequests(VexThreadState * state, const long long &currentRealTime);
+  void ignoreSignalHandler();
 
 };
 

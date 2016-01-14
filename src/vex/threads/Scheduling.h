@@ -82,9 +82,13 @@ public:
 	inline bool const & wasAwaken() const {
 		return awaken;
 	};
-	inline void setAwaken(const bool & _awaken) {
+
+	/**
+	 * Set #awaken to \p _awaken.
+	 */
+	void setAwaken(const bool & _awaken) {
 		awaken = _awaken;
-	};
+	}
 
 	inline void onThreadResumeByManager(unsigned int &controllingManagerId) {
 		awaken 			= true;
@@ -95,7 +99,12 @@ public:
 
 	void notifySchedulerForIntention(const short& intention);
 	short getSuspendingThreadIntention();
+
+    /**
+     * Wait on a condition variable #awaken and #condSuspendLock.
+     */
 	void blockHereUntilSignaled();
+
 	void notifySchedulerThatThreadResumed();
 
 	void haltSuspendForAwhile();
@@ -140,6 +149,10 @@ public:
 			}
     }
 
+    /**
+     * Set #threadCurrentlyControllingManager to \p
+     * threadCurrentlyControllingManager.
+     */
     void setThreadCurrentlyControllingManager(ThreadManager *threadCurrentlyControllingManager) {
         this->threadCurrentlyControllingManager = threadCurrentlyControllingManager;
     }

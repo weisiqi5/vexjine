@@ -59,9 +59,11 @@ class ThreadEventsBehaviour
      */
     void addThreadToBeExcludedFromSimulation(const char *threadName);
 
-    // Wrapped waiting: calls to be invoked before and after an EXISTING waiting call is executed as it is: waiting happens externally of VEX
     /**
-     * Must be called just before a waiting call is executed in the original runtime, and should have a matching #onWrappedWaitingEnd.
+     * Wrapped waiting calls must be invoked before and after an _existing_
+     * waiting call is executed such that waiting happens externally of VEX.
+     * Must be called just before a waiting call is executed in the profiled
+     * program, and should have a matching #onWrappedWaitingEnd.
      *
      * For example:
      * \code{.unparsed}
@@ -73,7 +75,8 @@ class ThreadEventsBehaviour
     void onWrappedWaitingStart();
 
     /**
-     * Must be called just after a waiting call has been executed in the original runtime, and should have a matching #onWrappedWaitingStart.
+     * Must be called just after a waiting call has been executed in the
+     * profiled program, and should have a matching #onWrappedWaitingStart.
      */
     void onWrappedWaitingEnd();
 

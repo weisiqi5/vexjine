@@ -184,41 +184,94 @@ class VexThreadState {
   PerformanceMeasure* logMethodExit();
 
   /**
+   * Called after entering an I/O method by
+   * MethodEventsBehaviour#afterIoMethodEntry.
+   *
    * Update this thread's virtual time and estimated real time, inform IOHandler
    * #ioHandler and update the invocation point hash value.
    */
   void onVexIoMethodEntry(const int &methodId, const int &invocationPointHashValue, const bool &possiblyBlocking);
 
   /**
+   * Called before exiting an I/O method by
+   * MethodEventsBehaviour#beforeIoMethodExit.
    *
+   * If this thread is not ignoring I/O, then update its virtual time and
+   * estimated real time. Update the amount of CPU time spent in I/O
+   * IoHandler#ioCpuTime and the number of VEX invocations.
    */
   void onVexIoMethodExit();
 
   /**
-   *
+   * Return Timers#getVirtualTime, while ensuring this thread is not in native
+   * waiting.
    */
   long long getTimeOnVexEntry();
 
   /**
+   * Update timers with the current real wallclock time and return it.
    *
+   * FIXME Only checks if this thread on entry is not in native waiting AFTER
+   * updating timers?
    */
   long long getRealTimeOnVexEntry();
 
+  /**
+   * Called before exiting a model described method by
+   * MethodEventsBehaviour#beforeMethodExitUsingPerformanceModel.
+   *
+   * TODO
+   */
   void onSynchronizeOnModelExit(const int &methodId);
 
-
-
+  /**
+   * Called before an existing waiting call is executed by
+   * ThreadEventsBehaviour#onWrappedWaitingStart, such that the waiting happens
+   * externally of VEX.
+   *
+   * TODO
+   */
   void onWrappedWaitingStart();
+
+  /**
+   * Called after an existing waiting call is executed by
+   * ThreadEventsBehaviour#onWrappedWaitingEnd, such that the waiting happens
+   * externally of VEX.
+   *
+   * TODO
+   */
   void onWrappedWaitingEnd();
 
+  /**
+   * Acquire Scheduling#sharedAccessKey and if this thread is not in native
+   * waiting, then update timers.
+   */
   void onVexEntry();
 
   void onVexExitWithRealTimeUpdate();
 
+  /**
+   * If the current thread is not running or if the current thread manager is
+   * NULL, then this thread is native waiting.
+   *
+   * If in native waiting, then call ThreadManager#suspendLooseCurrentThread to
+   * suspend this "loose" thread.
+   *
+   * When resumed, return threadIsNotInNativeWaiting = false.
+   *
+   * If not in native waiting, that is, thread was running at the time of
+   * invoking this method, then return threadIsNotInNativeWaiting = true.
+   */
   bool ensureThreadIsNotInNativeWaitingStateWhenEnteringVex(const long long &startingTime);
 
   bool onReplacedTimedWaiting(const long &objectId, const long &timeout);
   bool onReplacedWaiting(const long &objectId, const bool &resumeShouldBeHandledInternally);
+
+  /**
+   * TODO Release Scheduling#sharedAccessKey and block until signalled.
+   *
+   * Once resumed, acquire Scheduling#sharedAccessKey.
+   */
   void onBlockedWaitingInVex();
 
   void onWrappedTimedWaitingStart(const long &objectId, const long long &startingTime, const long &timeout);
@@ -419,13 +472,17 @@ class VexThreadState {
     currentState = VexThreadStates::REGISTERING;
   };
 
-  inline void setNewState(VexThreadStates::Code newState) {
+  /**
+   * Change the current thread state #currentState to \p newState, log this
+   * transition and update timers.
+   */
+  void setNewState(VexThreadStates::Code newState) {
     previousState = currentState;
     stats->logTransition(currentState, newState, (timers->getEstimatedRealTime() - timers->getLastTimePerStateERT()));
     timers->setLastTimePerStateERT(timers->getEstimatedRealTime());
-    //        setLastTimePerStateERT(getEstimatedRealTime());
     currentState = newState;
   }
+
   inline void setSuspended() {
     setNewState(VexThreadStates::SUSPENDED);
     scheduling->setAwaken(false);
@@ -449,9 +506,14 @@ class VexThreadState {
     timers->updateTimesBeforeWaitingWithTimeout(_timeout);
 
   };
-  inline void setRunning() {
+
+  /**
+   * Call #setNewState to change the current thread state to RUNNING.
+   */
+  void setRunning() {
     setNewState(VexThreadStates::RUNNING);
-  };
+  }
+
   inline void setLearningIo() {
     setNewState(VexThreadStates::LEARNING_IO);
   };
@@ -631,9 +693,13 @@ class VexThreadState {
     timers->setLastCPUTime(_lastCPUTime);
   };
 
+  /**
+   * Return Timers#getVirtualTime.
+   */
   inline long long const getVirtualTime() const {
     return timers->getVirtualTime();
   };
+
   inline long long const & getLastCPUTime() const {
     return timers->getLastCPUTime();
   };
@@ -643,7 +709,7 @@ class VexThreadState {
   };
 
   /**
-   * Returns Timers#virtualTimeSpeedup, this thread's current local scaling
+   * Return Timers#virtualTimeSpeedup, this thread's current local scaling
    * factor.
    */
   inline float const & getTimeScalingFactor() const {
@@ -690,9 +756,14 @@ class VexThreadState {
   inline long long getThreadTimeBeforeMethodInstrumentation() {
     return timers->getThreadTimeBeforeMethodInstrumentation();
   };
-  inline long long getThreadTimeBeforeIoMethodInstrumentation() {
+
+  /**
+   * Poll and return the current virtual time after compensating for I/O
+   * instrumentation delays.
+  */
+  long long getThreadTimeBeforeIoMethodInstrumentation() {
     return timers->getThreadTimeBeforeIoMethodInstrumentation();
-  };
+  }
 
   inline void updateCpuTimeClock() {
     timers->updateCpuTimeClock();
@@ -938,9 +1009,11 @@ public:
   long long getIoCPUTime() {
     return ioHandler->getIoCPUTime();
   }
+
   void updateIoCPUTimeTo(const long long &startingTime) {
     ioHandler->setIoCPUTime(startingTime - getLastCPUTime());
   }
+
   void setIoFinishedBeforeLogging(const bool & _ioFinishedBeforeLogging) {
     ioHandler->setIoFinishedBeforeLogging(_ioFinishedBeforeLogging);
   }
@@ -1133,10 +1206,12 @@ public:
   };
 
 
-  void setAwaken(const bool & _awaken) {
+  /**
+   * Set Scheduling#awaken to \p _awaken.
+   */
+  void setAwaken(const bool &_awaken) {
     scheduling->setAwaken(_awaken);
   }
-
 
   bool getAndResetForcedSuspendFlag() {
     return scheduling->getAndResetForcedSuspendFlag();
@@ -1166,6 +1241,11 @@ public:
   ThreadManager **getThreadCurrentlyControllingManagerPtr() const {
     return scheduling->getThreadCurrentlyControllingManagerPtr();
   }
+
+  /**
+   * Set Scheduling#threadCurrentlyControllingManager to \p
+   * threadCurrentlyControllingManager.
+   */
   void setThreadCurrentlyControllingManager(ThreadManager *threadCurrentlyControllingManager) {
     scheduling->setThreadCurrentlyControllingManager(threadCurrentlyControllingManager);
   }
@@ -1176,6 +1256,7 @@ public:
   short getSuspendingThreadIntention() {
     return scheduling->getSuspendingThreadIntention();
   }
+
   void blockHereUntilSignaled() {
     scheduling->blockHereUntilSignaled();
   }

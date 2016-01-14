@@ -115,9 +115,6 @@ void Scheduling::waitForResumingThread() {
 	pthread_mutex_unlock(&suspendFlagLock);
 }
 
-/*
- * The most important method: keeping the thread blocked to be notified by a scheduler
- */
 void Scheduling::blockHereUntilSignaled() {
 	awaken = false;
 	while (!awaken) {

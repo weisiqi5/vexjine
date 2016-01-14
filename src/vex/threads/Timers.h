@@ -676,7 +676,8 @@ class Timers {
     long long lastRealTimeInHandler;
 
     /**
-     * TODO
+     * TODO APPEARS to be the real timestamp of when the last state transition
+     * happened.
      */
     long long lastTimePerStateERT;
 

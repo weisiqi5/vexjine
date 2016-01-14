@@ -108,6 +108,10 @@ public:
 	void forceNativeWaitingPrintTheirStackTraces();
 	virtual void pollNativeWaitingThreads();
 	virtual void setNativeWaiting(VexThreadState *state);
+
+    /**
+     * Remove thread state \p state from #nativeWaitingThreadsPQueue.
+     */
 	virtual void unsetNativeWaiting(VexThreadState *state);
 
 	bool leapForbiddingRulesApply(VexThreadState *state);
@@ -145,7 +149,12 @@ public:
 	virtual ~NwPollingThreadRegistry();
 	virtual void pollNativeWaitingThreads();
 	virtual void setNativeWaiting(VexThreadState *state);
+
+    /**
+     * Remove thread state \p state from #nativeWaitingThreadsPQueue.
+     */
 	virtual void unsetNativeWaiting(VexThreadState *state);
+
 	virtual void remove(VexThreadState *state);
 protected:
 	AdaptiblePQueue<VexThreadState *, deque<VexThreadState *>, threadStatePtr_compare> *nativeWaitingThreadsPQueue;

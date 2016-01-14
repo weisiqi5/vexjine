@@ -772,9 +772,11 @@ int ThreadRegistry::getRegistryThreadsSystemAndVexStates(VexThreadState *state, 
 void ThreadRegistry::setNativeWaiting(VexThreadState *state) {
 
 }
+
 void ThreadRegistry::unsetNativeWaiting(VexThreadState *state) {
 
 }
+
 void ThreadRegistry::pollNativeWaitingThreads() {
 
 }
@@ -811,10 +813,10 @@ void NwPollingThreadRegistry::setNativeWaiting(VexThreadState *state) {
 	nativeWaitingThreadsPQueue->push(state);
 	unlockRegistry();
 }
+
 void NwPollingThreadRegistry::unsetNativeWaiting(VexThreadState *state) {
 	lockRegistry();
 	nativeWaitingThreadsPQueue->erase(state);
-//	cout << "erasing " << state << " sets size to " << nativeWaitingThreadsPQueue->size() << endl;
 	unlockRegistry();
 }
 
