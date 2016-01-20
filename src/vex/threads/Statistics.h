@@ -8,9 +8,9 @@
 #ifndef STATISTICS_H_
 #define STATISTICS_H_
 
-#include "DebugUtil.h"
-#include <iostream>
 #include <cstring>
+#include <iostream>
+#include "DebugUtil.h"
 
 #define POSSIBLE_THREADSTATES 25
 
@@ -38,59 +38,138 @@ enum {
 	JUMPING_TO_CURRENT_TIME = 6
 };
 
+/**
+ * XXX Used to store all state transitions for a thread, time spent in each
+ * state, and invocation points.
+ */
 class Statistics {
-public:
+ public:
+  /**
+   * Create a new Statistics object with default, nil values.
+   */
 	Statistics();
 	virtual ~Statistics();
+
+  /**
+   * Logs a transition from state \p currentState to \p nextState in the
+   * transition table #stateTransitions only if #COUNT_STATE_TRANSITIONS is set.
+   */
 	void logTransition(const short &currentState, const short &nextState) {
-		#if COUNT_STATE_TRANSITIONS == 1
+#if COUNT_STATE_TRANSITIONS == 1
 		++stateTransitions[currentState][nextState];
-		#endif
+#endif
 	}
 
+  /**
+   * Logs a transition from state \p currentState to \p nextState in the
+   * transition table #stateTransitions, and log the duration \p
+   * durationOfLastState in #totalTimePerState.
+   */
 	void logTransition(const short &currentState, const short &nextState, long long durationOfLastState) {
 		totalTimePerState[currentState] += durationOfLastState;
 		logTransition(currentState, nextState);
 	}
-	inline short const &getMonitorPosition() {
+
+  /**
+   * Return monitorPosition.
+   */
+	short const& getMonitorPosition() {
 		return monitorPosition;
 	}
-	inline void setMonitorPosition(const short &_newPosition) {
+
+  /**
+   * Set #monitorPosition to \p _newPosition.
+   */
+	void setMonitorPosition(const short &_newPosition) {
 		monitorPosition = _newPosition;
 	}
-	inline void clearMonitorPosition() {
+
+  /**
+   * Set #monitorPosition to 0.
+   */
+	void clearMonitorPosition() {
 		monitorPosition = 0;
 	}
-	inline unsigned long getInvocationPoints() {
+
+  /**
+   * Return #invocationPoints.
+   */
+	unsigned long getInvocationPoints() {
 		return invocationPoints;
-	};
-	inline void setInvocationPoints(const unsigned long &points) {
+	}
+
+  /**
+   * Set #invocationPoints to \p points.
+   */
+	void setInvocationPoints(const unsigned long &points) {
 		invocationPoints = points;
-	};
-	inline void addInvocationPoints() {
+	}
+
+  /**
+   * Increment #invocationPoints.
+   */
+	void addInvocationPoints() {
 		++invocationPoints;
-	};
-	inline long long *getTotalTimePerState() {
+	}
+
+  /**
+   * Return a pointer to the first entry in #totalTimePerState.
+   */
+	long long* getTotalTimePerState() {
 		return &totalTimePerState[0];
-	};
-	inline StateTransitionMatrix *getStateTransitionsMatrix() {
+	}
+
+  /**
+   * Return a pointer to the #stateTransitions matrix.
+   */
+	StateTransitionMatrix* getStateTransitionsMatrix() {
 		return &stateTransitions;
-	};
-	inline void setLastVexMethodInvoked(const char *_lastMethod) {
+	}
+
+  /**
+   * Set #forelastVEXMethodInvoked to #lastVEXMethodInvoked and
+   * #lastVEXMethodInvoked to \p _lastMethod.
+   */
+	void setLastVexMethodInvoked(const char *_lastMethod) {
 		strcpy(forelastVEXMethodInvoked, lastVEXMethodInvoked);
 		strcpy(lastVEXMethodInvoked, _lastMethod);
-	};
+	}
 
+  /**
+   * Reset #stateTransitions and #totalTimePerState.
+   */
 	void clearTransitionCounters();
-//protected:
-	short monitorPosition;	// denotes the position from which the thread is making a time update call
+
+  /**
+   * Denotes the position from which the thread is making a time update call,
+   * appears to be unused.
+   */
+	short monitorPosition;
+
+	/**
+	 * Stores the amount of virtual time spent in each thread state.
+	 */
 	long long totalTimePerState[POSSIBLE_THREADSTATES];
+
+  /**
+   * TODO
+   */
 	unsigned long invocationPoints;
+
+  /**
+   * 2D matrix that stores the number of transitions from one state to another.
+   */
 	StateTransitionMatrix stateTransitions;
 
+  /**
+   * Name of the VEX method invoked before the last, appears to be unused.
+   */
 	char forelastVEXMethodInvoked[64];
-	char lastVEXMethodInvoked[64];
 
+  /**
+   * Name of the last VEX method invoked, appears to be unused.
+   */
+	char lastVEXMethodInvoked[64];
 };
 
 #endif /* STATISTICS_H_ */
