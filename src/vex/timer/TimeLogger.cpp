@@ -420,7 +420,7 @@ ThreadTimeSamples::ThreadTimeSamples(VexThreadState *_state) {
 		threadName = new char[strlen(state->getName())+1];
 		strcpy(threadName, state->getName());
 	} else {
-		threadName = new char[strlen("Background Load Thread" + 1)];
+		threadName = new char[23];
 		strcpy(threadName, "Background Load Thread");
 	}
 }
