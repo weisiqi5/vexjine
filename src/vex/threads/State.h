@@ -9,9 +9,9 @@
 #define STATE_H_
 
 class State {
-public:
-	State();
-	virtual ~State();
+ public:
+  State();
+  virtual ~State();
 };
 
 #endif /* STATE_H_ */
