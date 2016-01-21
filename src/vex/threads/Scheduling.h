@@ -11,299 +11,473 @@
 #include <pthread.h>
 #include <errno.h>
 #include "DebugUtil.h"
+
 // Flags for synchronization withe the scheduler
 enum {
-	CLEAR_SUSPENDFLAG 	= 0,
-	TO_BE_SUSPENDED		= 1,
-	TO_KEEP_ON_RUNNING	= 2,
-	TO_BE_DISREGARDED	= 3,
-	RESUMING_SUSPENDFLAG = 4
+  CLEAR_SUSPENDFLAG 	= 0,
+  TO_BE_SUSPENDED		= 1,
+  TO_KEEP_ON_RUNNING	= 2,
+  TO_BE_DISREGARDED	= 3,
+  RESUMING_SUSPENDFLAG = 4
 };
 
 #define MAXIMUM_CONSECUTIVE_TIMESLICES_AS_NATIVE_WAITING 5
 
 class ThreadManager;
 
+/**
+ * XXX Handles thread scheduling via pthread condition variables.
+ */
 class Scheduling {
-public:
-	Scheduling();
-	virtual ~Scheduling();
+ public:
+  Scheduling();
+  virtual ~Scheduling();
 
+  /**
+   * Increment #waitingInNativeVTFcode and attempt to acquire #sharedAccessKey.
+   */
+  void lockShareResourceAccessKey() {
+    ++waitingInNativeVTFcode;
+    pthread_mutex_lock(&sharedAccessKey);
+  }
 
-	inline void lockShareResourceAccessKey() {
-		++waitingInNativeVTFcode;
-		pthread_mutex_lock(&sharedAccessKey);
-	}
+  /**
+   * Attempt to acquire #sharedAccessKey with a fixed timeout \p abs_timeout.
+   *
+   * Return true if the caller was able to acquire the lock, or if \p
+   * abs_timeout was reached. Return false if any other error code was returned.
+   */
+  bool lockShareResourceAccessKeyWithTimeout(const struct timespec *abs_timeout) {
+    return pthread_mutex_timedlock(&sharedAccessKey, abs_timeout) != ETIMEDOUT;
+  }
 
-	inline bool lockShareResourceAccessKeyWithTimeout(const struct timespec *abs_timeout) {
-		return pthread_mutex_timedlock(&sharedAccessKey, abs_timeout) != ETIMEDOUT;
-	}
+  /**
+   * Release #sharedAccessKey.
+   */
+  void unlockShareResourceAccessKey() {
+    pthread_mutex_unlock(&sharedAccessKey);
+  }
 
-	inline void unlockShareResourceAccessKey() {
-		pthread_mutex_unlock(&sharedAccessKey);
-	}
+  /**
+   * Return true if #doNotSuspendUntil is less than the current real time.
+   */
+  bool isSuspendingAllowed();
 
-	bool isSuspendingAllowed();
-//	inline bool isSuspendingAllowed() {
-//		return doNotSuspendUntil < Time::getRealTime();
-//	}
+  /**
+   * Set #currentlyPolledForWhetherItIsNativeWaiting to true.
+   */
+  void flagThreadBeingCurrentlyPolledForNativeWaiting() {
+    currentlyPolledForWhetherItIsNativeWaiting = true;
+  }
 
-	inline void flagThreadBeingCurrentlyPolledForNativeWaiting() {
-		currentlyPolledForWhetherItIsNativeWaiting = true;
-	}
+  /**
+   * Set #currentlyPolledForWhetherItIsNativeWaiting to false.
+   */
+  void clearThreadBeingCurrentlyPolledForNativeWaiting() {
+    currentlyPolledForWhetherItIsNativeWaiting = false;
+  }
 
-	inline void clearThreadBeingCurrentlyPolledForNativeWaiting() {
-		currentlyPolledForWhetherItIsNativeWaiting = false;
-	}
+  /**
+   * Return #currentlyPolledForWhetherItIsNativeWaiting.
+   */
+  const bool& isThreadBeingCurrentlyPolledForNativeWaiting() const {
+    return currentlyPolledForWhetherItIsNativeWaiting;
+  }
 
-	inline const bool &isThreadBeingCurrentlyPolledForNativeWaiting() const {
-		return currentlyPolledForWhetherItIsNativeWaiting;
-	}
+  /**
+   * Set #inVex to false.
+   */
+  void exitingVex() {
+    inVex = false;
+  }
 
-	inline void exitingVex() {
-		inVex = false;
-	};
-
-	inline void waitForThreadToBlock() {
-		if (!awaken) {
-			pthread_mutex_lock(&suspendLock);
-		}
-	};
-	inline void signalBlockedThreadToResume() {
-		pthread_cond_signal(&condSuspendLock);
-	};
-	inline void allowSignalledThreadToResume() {
-		pthread_mutex_unlock(&suspendLock);
-	};
-
-	inline void addVtfInvocationPoint() {
-		++vtfInvocationsSinceLastResume;
-	};
-	inline bool const & wasAwaken() const {
-		return awaken;
-	};
-
-	/**
-	 * Set #awaken to \p _awaken.
-	 */
-	void setAwaken(const bool & _awaken) {
-		awaken = _awaken;
-	}
-
-	inline void onThreadResumeByManager(unsigned int &controllingManagerId) {
-		awaken 			= true;
-		vtfInvocationsSinceLastResume = 0;
-		localManagerId = controllingManagerId;
-		consecutiveTimeslots = 0;
-	};
-
-	void notifySchedulerForIntention(const short& intention);
-	short getSuspendingThreadIntention();
-
-    /**
-     * Wait on a condition variable #awaken and #condSuspendLock.
-     */
-	void blockHereUntilSignaled();
-
-	void notifySchedulerThatThreadResumed();
-
-	void haltSuspendForAwhile();
-
-	void acquireThreadControllingLock();
-	void releaseThreadControllingLock();
-
-	void waitForResumingThread();
-	inline void setAwakeningFromJoin(const bool &value) {
-		awakeningFromJoin = value;
-//		if (value) {
-//			++awakeningFromJoin;// = value;
-//		} else {
-//			// Can get below zero as all "waiting-end" calls set it to false, while it might not have been set
-//			if (awakeningFromJoin > 0) {
-//				--awakeningFromJoin;
-//			}
-//		}
-	};
-
-	inline void increaseVtfInvocationsSinceLastResume() {
-		++vtfInvocationsSinceLastResume;
-	}
-
-	inline const bool &isAwakeningAfterJoin() const {
-		return awakeningFromJoin;
-	}
-
-    ThreadManager *getThreadCurrentlyControllingManager() const {
-        return threadCurrentlyControllingManager;
+  /**
+   * If #awaken is false, then attempt to acquire #suspendLock.
+   */
+  void waitForThreadToBlock() {
+    if (!awaken) {
+      pthread_mutex_lock(&suspendLock);
     }
+  }
 
-    ThreadManager *getPreviouslyControllingManager() const {
-        return previouslyControllingManager;
+  /**
+   * Signal #condSuspendLock.
+   */
+  void signalBlockedThreadToResume() {
+    pthread_cond_signal(&condSuspendLock);
+  }
+
+  /**
+   * Release #suspendLock.
+   */
+  void allowSignalledThreadToResume() {
+    pthread_mutex_unlock(&suspendLock);
+  }
+
+  /**
+   * Increment #vtfInvocationsSinceLastResume.
+   */
+  void addVtfInvocationPoint() {
+    ++vtfInvocationsSinceLastResume;
+  }
+
+  /**
+   * Return #awaken.
+   */
+  bool const & wasAwaken() const {
+    return awaken;
+  }
+
+  /**
+   * Set #awaken to \p _awaken.
+   */
+  void setAwaken(const bool & _awaken) {
+    awaken = _awaken;
+  }
+
+  /**
+   * Set #awaken to true, #localManagerId to \p controllingManagerId and reset
+   * both #vtfInvocationsSinceLastResume and consecutiveTimeslots to 0.
+   */
+  void onThreadResumeByManager(unsigned int &controllingManagerId) {
+    awaken = true;
+    vtfInvocationsSinceLastResume = 0;
+    localManagerId = controllingManagerId;
+    consecutiveTimeslots = 0;
+  }
+
+  /**
+   * Attempt to acquire #suspendFlagLock, then set #suspendFlag to \p intention
+   * and signal #condSuspendFlagLock before finally releasing #suspendFlagLock.
+   *
+   * The #suspendFlag of a thread determines whether it can be suspended or not.
+   */
+  void notifySchedulerForIntention(const short& intention);
+
+  /**
+   * Wait on condition variable #condSuspendFlagLock until #suspendFlag is no
+   * longer CLEAR_SUSPENDFLAG, reset #suspendFlag then return #returnValue.
+   *
+   * The #suspendFlag of a thread determines whether it can be suspended or not.
+   */
+  short getSuspendingThreadIntention();
+
+  /**
+   * Wait on condition variable #condSuspendLock until #awaken is no longer
+   * false.
+   */
+  void blockHereUntilSignaled();
+
+  /**
+   * Acquire #suspendFlagLock, set #suspendFlag to RESUMING_SUSPENDFLAG then
+   * signal #condSuspendFlagLock.
+   */
+  void notifySchedulerThatThreadResumed();
+
+  /**
+   * Set #doNotSuspendUntil to the current real time plus 3 seconds.
+   */
+  void haltSuspendForAwhile();
+
+  /**
+   * Acquire #suspendLock.
+   */
+  void acquireThreadControllingLock();
+
+  /**
+   * Release #suspendLock.
+   */
+  void releaseThreadControllingLock();
+
+  /**
+   * Wait on condition variable #condSuspendFlagLock until #suspendFlag is no
+   * longer CLEAR_SUSPENDFLAG, then reset #suspendFlag.
+   *
+   * The #suspendFlag of a thread determines whether it can be suspended or not.
+   */
+  void waitForResumingThread();
+
+  /**
+   * Set #awakeningFromJoin to \p value.
+   */
+  void setAwakeningFromJoin(const bool &value) {
+    awakeningFromJoin = value;
+    //		if (value) {
+    //			++awakeningFromJoin;// = value;
+    //		} else {
+    //			// Can get below zero as all "waiting-end" calls set it to false, while it might not have been set
+    //			if (awakeningFromJoin > 0) {
+    //				--awakeningFromJoin;
+    //			}
+    //		}
+  }
+
+  /**
+   * Increment #vtfInvocationsSinceLastResume.
+   */
+  void increaseVtfInvocationsSinceLastResume() {
+    ++vtfInvocationsSinceLastResume;
+  }
+
+  /**
+   * Return #awakeningFromJoin.
+   */
+  const bool& isAwakeningAfterJoin() const {
+    return awakeningFromJoin;
+  }
+
+  /**
+   * Return the current controlling thread manager for this thread.
+   */
+  ThreadManager* getThreadCurrentlyControllingManager() const {
+    return threadCurrentlyControllingManager;
+  }
+
+  /**
+   * Return the previous controlling thread manager for this thread.
+   */
+  ThreadManager* getPreviouslyControllingManager() const {
+    return previouslyControllingManager;
+  }
+
+  /**
+   * Return a pointer to the current controlling thread manager for this thread.
+   */
+  ThreadManager** getThreadCurrentlyControllingManagerPtr() {
+    if (threadCurrentlyControllingManager != NULL) {
+      return &threadCurrentlyControllingManager;
+    } else {
+      return NULL;
     }
+  }
 
-    ThreadManager **getThreadCurrentlyControllingManagerPtr() {
-			if (threadCurrentlyControllingManager != NULL) {
-				return &threadCurrentlyControllingManager;
-			} else {
-				return NULL;
-			}
-    }
+  /**
+   * Set #threadCurrentlyControllingManager to \p
+   * threadCurrentlyControllingManager.
+   */
+  void setThreadCurrentlyControllingManager(ThreadManager *threadCurrentlyControllingManager) {
+    this->threadCurrentlyControllingManager = threadCurrentlyControllingManager;
+  }
 
-    /**
-     * Set #threadCurrentlyControllingManager to \p
-     * threadCurrentlyControllingManager.
-     */
-    void setThreadCurrentlyControllingManager(ThreadManager *threadCurrentlyControllingManager) {
-        this->threadCurrentlyControllingManager = threadCurrentlyControllingManager;
-    }
+  /**
+   * Release a thread from its controlling manager by setting
+   * #waitingInNativeVTFcode to 0, #previousControllingManager to
+   * #threadCurrentlyControllingManager and reset
+   * #consecutiveTimesFoundNativeWaiting.
+   */
+  void releaseThreadFromItsControllingManager() {
+    waitingInNativeVTFcode = 0;
+    previouslyControllingManager = threadCurrentlyControllingManager;
+    threadCurrentlyControllingManager = NULL;
+    consecutiveTimesFoundNativeWaiting = MAXIMUM_CONSECUTIVE_TIMESLICES_AS_NATIVE_WAITING;
+  }
 
-    void releaseThreadFromItsControllingManager() {
-    	waitingInNativeVTFcode = 0;
-    	previouslyControllingManager = threadCurrentlyControllingManager;
-    	threadCurrentlyControllingManager = NULL;
-    	consecutiveTimesFoundNativeWaiting = MAXIMUM_CONSECUTIVE_TIMESLICES_AS_NATIVE_WAITING;
-    }
+  /**
+   * Set #simulatingModel to true and release #suspendLock.
+   *
+   * Release the controlling key when a model is being simulated since the
+   * scheduler can't stop it anymore. This only applies if the method body of
+   * the model-described method should be executed.
+   */
+  void startSchedulerControlledModelSimulation();
 
-    void startSchedulerControlledModelSimulation();
-    void blockUntilModelSimulationEnd();
-    void notifyModelSimulationEnd();
-    void locklessNotifyModelSimulationEnd();
+  /**
+   * Acquire #suspendLock and wait on condition variable #condSuspendLock until
+   * #simulatingModel is false.
+   */
+  void blockUntilModelSimulationEnd();
 
-	static void setDefaultThreadManager(ThreadManager *_defaultThreadManager) {
-		defaultThreadManager = _defaultThreadManager;
-	}
+  /**
+   * Acquire #suspendLock, set #simulatingModel to false and signal
+   * #condSuspendLock.
+   *
+   * Called when the model simulation ends, and synchronize with a thread that's
+   * waiting or running real code.
+   */
+  void notifyModelSimulationEnd();
 
-	bool getAndResetForcedSuspendFlag() {
-		bool temp = forceSuspend;
-		forceSuspend = false;
-		return temp;
-	};
+  /**
+   * Set #simulatingModel to false.
+   */
+  void locklessNotifyModelSimulationEnd();
 
-	bool const &isThreadSetToBeForcefullySuspended() const {
-		return forceSuspend;
-	}
+  /**
+   * Set #defaultThreadManager to \p _defaultThreadManager.
+   */
+  static void setDefaultThreadManager(ThreadManager *_defaultThreadManager) {
+    defaultThreadManager = _defaultThreadManager;
+  }
 
-	int const & getWaitingInNativeVTFcode() {
-		return waitingInNativeVTFcode;
-	}
+  /**
+   * Set #forceSuspend to false and return its previous value.
+   */
+  bool getAndResetForcedSuspendFlag() {
+    bool temp = forceSuspend;
+    forceSuspend = false;
+    return temp;
+  }
 
-	inline bool isInVex() {
-		return inVex;
-	}
-	inline void setVtfInvocationsSinceLastResume(const long long & _vtfInvocationsSinceLastResume) {
-		vtfInvocationsSinceLastResume = _vtfInvocationsSinceLastResume;
-	};
+  /**
+   * Return #forceSuspend.
+   */
+  bool const& isThreadSetToBeForcefullySuspended() const {
+    return forceSuspend;
+  }
 
-	void setWaitingInNativeVTFcode(const int &_value) {
-		waitingInNativeVTFcode = _value;
-	}
-	inline long long const & getVtfInvocationsSinceLastResume() const {
-		return vtfInvocationsSinceLastResume;
-	};
+  /**
+   * Return #waitingInNativeVTFcode.
+   */
+  int const& getWaitingInNativeVTFcode() {
+    return waitingInNativeVTFcode;
+  }
 
-	void forceThreadSuspend() {
-		forceSuspend = true;
-	};
-protected:
+  /**
+   * Return #inVex.
+   */
+  bool isInVex() {
+    return inVex;
+  }
 
-//	inline bool maximumPossibleNativeWaitingExpired() {
-//		return (consecutiveTimesFoundNativeWaiting-- > 0);
-//	}
-//
+  /**
+   * Set #vtfInvocationsSinceLastResume to \p _vtfInvocationsSinceLastResume.
+   */
+  void setVtfInvocationsSinceLastResume(const long long &_vtfInvocationsSinceLastResume) {
+    vtfInvocationsSinceLastResume = _vtfInvocationsSinceLastResume;
+  }
 
-//
-//	bool isThreadBlockedInNativeWait();
-//	bool isThreadBlockedInNativeWait(const long long &realTime);
-//	inline unsigned int getConsecutiveTimeslots() const {
-//		return consecutiveTimeslots;
-//	}
-//	inline void setControllingManagerId(const int &_id) {
-//		localManagerId = _id;
-//	};
-//	inline unsigned int getControllingManagerId() {
-//		return localManagerId;
-//	};
-//
-//
-//	//	inline bool getIsAwakeningAfterJoin() {
-//	//		return awakeningFromJoin;
-//	//	}
-//	//
-//	//	// Each time subtract one from the counter denoting that you are waiting on a thread to join
-//	//	inline bool getAndConsumeIsAwakeningAfterJoinCounter() {
-//	//		return awakeningFromJoin;
-//	////
-//	////		if (awakeningFromJoin>0) {
-//	////			--awakeningFromJoin;
-//	////			return true;
-//	////		}
-//	////		return false;
-//	//	};
-//
-//	void onEnteringVex();
-//
-//	inline int getSharedResourceAccessKeyCurrentOwner() {
-//		return sharedAccessKey.__data.__owner;
-//	}
-//
-//	inline void enteringVex() {
-//		inVex = true;
-//	};
-//
-//	inline void doNotSuspend() {
-//		suspendingAllowed = false;
-//	}
-//
-//	inline void allowSuspend() {
-//		suspendingAllowed = true;
-//	}
-//
-//	void increaseConsecutiveTimeslots() {
-//		++consecutiveTimeslots;
-//	};
+  /**
+   * Set #waitingInNativeVTFcode to \p _value.
+   */
+  void setWaitingInNativeVTFcode(const int &_value) {
+    waitingInNativeVTFcode = _value;
+  }
 
+  /**
+   * Return #vtfInvocationsSinceLastResume.
+   */
+  long long const& getVtfInvocationsSinceLastResume() const {
+    return vtfInvocationsSinceLastResume;
+  }
 
+  /**
+   * Set #forceSuspend to true.
+   */
+  void forceThreadSuspend() {
+    forceSuspend = true;
+  }
 
+ protected:
+  /**
+   * ID of the thread manager that controls this thread in the local ID array.
+   */
+  unsigned int localManagerId;
 
+  /**
+   * The current thread manager controlling this thread.
+   */
+  ThreadManager* threadCurrentlyControllingManager;
 
+  /**
+   * The previous thread manager controlling this thread.
+   */
+  ThreadManager* previouslyControllingManager;
 
+  /**
+   * Appears to be unused.
+   */
+  bool forceSuspend;
 
+  /**
+   * Appears to be unused, is set to false on construction, by method
+   * #exitingVex and returned by #isInVex but not set by any method.
+   */
+  bool inVex;
 
+  /**
+   * TODO
+   *
+   * Used for coordinating with a joining thread since a thread exits VEX before
+   * it actually dies and allowing blocked threads waiting to join to resume.
+   */
+  bool awakeningFromJoin;
 
+  /**
+   * Used with condition variable #condSuspendFlagLock to block this thread on
+   * a scheduler intention.
+   */
+  short suspendFlag;
 
+  /**
+   * Used with condition variable #condSuspendFlagLock.
+   */
+  pthread_mutex_t suspendFlagLock;
 
+  /**
+   * Condition variable used to block this thread.
+   */
+  pthread_cond_t condSuspendFlagLock;
 
+  /**
+   * NAT_WAIT
+   */
+  long long vtfInvocationsSinceLastResume;
 
+  /**
+   * Used to avoid taking time while in VEX code.
+   */
+  int waitingInNativeVTFcode;				// used to avoid taking time while in VEX code
 
+  /**
+   * Used with condition variable #condSuspendLock to block this thread
+   * unconditionally.
+   */
+  bool awaken;
 
+  /**
+   * Used with condition variable #condSuspendLock to block this thread while
+   * simulating model-described methods.
+   */
+  bool simulatingModel;
 
-	unsigned int localManagerId;		// the id of the manager that controls this thread in the local id array
-	ThreadManager *threadCurrentlyControllingManager;
-	ThreadManager *previouslyControllingManager;
-	bool forceSuspend;
-	bool inVex;
-	bool awakeningFromJoin;				// used for coordination with a joining thread, because a thread exits VEX before really dying (and allowing blocked threads waiting to join on it to resume)
+  /**
+   * Flag to ensure that only one scheduler is able to poll the current thread.
+   */
+  bool currentlyPolledForWhetherItIsNativeWaiting;
 
-	short suspendFlag;
-	pthread_mutex_t suspendFlagLock;
-	pthread_cond_t condSuspendFlagLock;
+  /**
+   * Used with condition variable #condSuspendLock.
+   */
+  pthread_mutex_t suspendLock;
 
-	long long vtfInvocationsSinceLastResume;	//NAT_WAIT
-	int waitingInNativeVTFcode;				// used to avoid taking time while in VEX code
+  /**
+   * Used for mutual exclusion of this thread's scheduling.
+   */
+  pthread_mutex_t sharedAccessKey;
 
-	bool awaken;
-	bool simulatingModel;
+  /**
+   * Condition variable used to block this thread.
+   */
+  pthread_cond_t condSuspendLock;
 
-	bool currentlyPolledForWhetherItIsNativeWaiting; 	// flag so that only one scheduler polls you at each time
-	pthread_mutex_t suspendLock;
-	pthread_mutex_t sharedAccessKey;
+  /**
+   * Appears to be unused.
+   */
+  unsigned int consecutiveTimeslots;
 
-	pthread_cond_t condSuspendLock;
-	unsigned int consecutiveTimeslots;
-	int consecutiveTimesFoundNativeWaiting;
+  /**
+   * Appears to be unused.
+   */
+  int consecutiveTimesFoundNativeWaiting;
 
-	long long doNotSuspendUntil;
-	static ThreadManager *defaultThreadManager;
+  /**
+   * Absolute real timestamp that this thread cannot suspend until.
+   */
+  long long doNotSuspendUntil;
+
+  /**
+   * The default thread manager.
+   */
+  static ThreadManager *defaultThreadManager;
 };
 
 #endif /* SCHEDULING_H_ */
