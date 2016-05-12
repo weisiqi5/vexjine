@@ -86,7 +86,7 @@ bool VexCountersBasedCriteria::isThreadStillBlockedInNativeWait(const long long 
 	return ((cpuTimeAtBeginningOfSignalHandler - threadTimingInfo->getLastCPUTime()) < cpuTimePercentageOfRealTimeThatIsAcceptedAsProgress * (realTimeAtBeginningOfSignalHandler - threadTimingInfo->getLastRealTimeInHandler()));
 }
 
-
+#ifdef USING_LIBUNWIND
 void printStackFrame() {
 	bool result = false;
 	unw_cursor_t    cursor;
@@ -120,6 +120,7 @@ void printStackFrame() {
 	cout << endl;
 
 }
+#endif
 
 bool VexCountersBasedCriteria::isNativeWaiting(const long long &realTime) {
 	return threadTimingInfo->doesTheDifferenceBetweenCpuAndRealTimeIndicateLackOfProgress(realTime, cpuTimePercentageOfRealTimeThatIsAcceptedAsProgress);

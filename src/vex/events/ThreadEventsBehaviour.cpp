@@ -32,6 +32,8 @@ class PapiProfiler;
 #include <algorithm>
 using namespace std;
 
+void printout(string & x);
+
 ThreadEventsBehaviour::ThreadEventsBehaviour(ThreadManagerRegistry *_managers, ThreadRegistry *_registry, EventLogger *_eventLogger, ObjectRegistry *_waitingOnObjectRegistry, LockRegistry *_lockRegistry, AggregateStateCounters *_aggregateStateTransitionCounters, const bool &_stackTraceMode, const bool &_usingVtfScheduler, PapiProfiler *_hpcProfiler) {
     managers = _managers;
     registry = _registry;
